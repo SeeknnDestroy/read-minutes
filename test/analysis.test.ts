@@ -34,6 +34,17 @@ describe('analyzeDocument', () => {
 
     expect(analysis.reason).toBe('below-threshold')
   })
+
+  it('returns no-article for search-results style pages', () => {
+    const document = loadFixtureDocument('search-results.html', 'https://www.google.com/search?q=rate+limits+openai')
+    const analysis = analyzeDocument(document, defaultSettings)
+
+    expect(analysis.status).toBe('no-article')
+
+    if (analysis.status !== 'no-article') {
+      throw new Error('Expected a no-article analysis for the search-results fixture.')
+    }
+  })
 })
 
 describe('calculateReadingMinutes', () => {

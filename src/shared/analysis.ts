@@ -1,5 +1,6 @@
 import Defuddle from 'defuddle'
 import type { DefuddleResponse } from 'defuddle'
+import { BADGE_HOST_ID } from './constants'
 import { MINIMUM_ARTICLE_WORDS } from './constants'
 import { calculateReadingMinutes, countWords, formatReadingTime, normalizeWhitespace } from './reading-time'
 import type { ArticleAnalysis, ExtensionSettings, NoArticleAnalysis, PageAnalysis } from './types'
@@ -8,7 +9,11 @@ export function analyzeDocument(document: Document, settings: ExtensionSettings)
   const baseMetadata = createBaseMetadata(document)
 
   try {
-    const parser = new Defuddle(document, { useAsync: false })
+    const analysisDocument = createAnalysisDocumentSnapshot(document)
+    const parser = new Defuddle(analysisDocument, {
+      url: baseMetadata.sourceUrl,
+      useAsync: false,
+    })
     const result = parser.parse()
     const wordCount = getWordCount(result)
     const hasEnoughWords = wordCount >= MINIMUM_ARTICLE_WORDS
@@ -33,6 +38,17 @@ export function analyzeDocument(document: Document, settings: ExtensionSettings)
   } catch {
     return createNoArticleAnalysis(baseMetadata, 'parse-failed')
   }
+}
+
+function createAnalysisDocumentSnapshot(document: Document): Document {
+  const html = document.documentElement.outerHTML
+  const parser = new DOMParser()
+  const snapshot = parser.parseFromString(`<!doctype html>${html}`, 'text/html')
+  const badgeHost = snapshot.getElementById(BADGE_HOST_ID)
+
+  badgeHost?.remove()
+
+  return snapshot
 }
 
 function createBaseMetadata(document: Document) {
@@ -107,4 +123,3 @@ function createNoArticleAnalysis(
     reason,
   }
 }
-
