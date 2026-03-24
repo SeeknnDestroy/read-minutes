@@ -11,15 +11,34 @@
 
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: 360px;
 }
 
 .popup-shell {
   box-sizing: border-box;
-  padding: 20px;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
   background:
     radial-gradient(circle at top left, #f8d78b 0, #f5f1e8 45%),
     linear-gradient(135deg, #f5f1e8 0, #efe8dc 100%);
+}
+
+.hero-card,
+.controls-card,
+.metric-card,
+.empty-state {
+  border: 1px solid rgba(42, 54, 50, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 252, 246, 0.8);
+  box-shadow:
+    0 10px 24px rgba(45, 36, 20, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+}
+
+.hero-card {
+  padding: 18px;
 }
 
 .eyebrow {
@@ -31,15 +50,107 @@ body {
   color: #7d6042;
 }
 
+.hero-copy {
+  display: grid;
+  gap: 12px;
+}
+
+.domain {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #7d6042;
+}
+
 .title {
   margin: 0 0 10px;
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1.1;
 }
 
-.copy {
+.status-pill {
   margin: 0;
-  font-size: 14px;
-  color: #4a534f;
+  justify-self: start;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #1f2a27;
+  color: #f5f1e8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  padding: 16px;
+}
+
+.metric-label,
+.control-help {
+  margin: 0;
+  font-size: 12px;
+  color: #6d7068;
+}
+
+.metric-value {
+  margin: 8px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2a27;
+}
+
+.empty-state {
+  padding: 16px;
+  color: #4a534f;
+  font-size: 14px;
+}
+
+.controls-card {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.control-row,
+.field-group {
+  display: grid;
+  gap: 10px;
+}
+
+.control-row {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.control-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.control-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2a27;
+}
+
+.number-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(42, 54, 50, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1f2a27;
+  font: inherit;
+}
+
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #ba6c39;
+}
