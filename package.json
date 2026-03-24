@@ -1,0 +1,23 @@
+{
+  "name": "read-minutes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "test": "vitest run --passWithNoTests",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.4.0",
+    "@types/chrome": "^0.1.37",
+    "@types/node": "^25.5.0",
+    "jsdom": "^27.0.1",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.2",
+    "vitest": "^4.1.1"
+  }
+}
+

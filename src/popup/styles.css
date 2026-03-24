@@ -1,0 +1,45 @@
+:root {
+  color: #18211f;
+  background: #f5f1e8;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  line-height: 1.4;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+.popup-shell {
+  box-sizing: border-box;
+  padding: 20px;
+  background:
+    radial-gradient(circle at top left, #f8d78b 0, #f5f1e8 45%),
+    linear-gradient(135deg, #f5f1e8 0, #efe8dc 100%);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7d6042;
+}
+
+.title {
+  margin: 0 0 10px;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.copy {
+  margin: 0;
+  font-size: 14px;
+  color: #4a534f;
+}
+
