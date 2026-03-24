@@ -27,6 +27,7 @@
     },
     "types": [
       "chrome",
+      "node",
       "vitest/globals"
     ]
   },
@@ -35,4 +36,3 @@
     "test/**/*"
   ]
 }
-
