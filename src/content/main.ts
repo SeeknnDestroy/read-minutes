@@ -3,11 +3,18 @@ import { analyzeDocument } from '@/shared/analysis'
 import { isGetPageAnalysisMessage } from '@/shared/messages'
 import { mergeSettingsFromStorageChange, readSettings } from '@/shared/settings'
 import { defaultSettings, type PageAnalysis } from '@/shared/types'
+import {
+  dismissBadgeForAnalysis,
+  shouldRenderBadge,
+  updateDismissedSourceUrlForLocationChange,
+} from './badge-visibility'
 import { removeBadge, renderBadge } from './badge'
 
 let currentAnalysis = analyzeDocument(document, defaultSettings)
 let currentSettings = defaultSettings
 let analysisTimer: number | undefined
+let currentLocationUrl = document.location.href
+let dismissedSourceUrl: string | null = null
 
 void initializeContentScript()
 
@@ -23,8 +30,12 @@ async function initializeContentScript(): Promise<void> {
 function runAnalysis(): void {
   currentAnalysis = analyzeDocument(document, currentSettings)
 
-  if (currentSettings.showInlineBadge && currentAnalysis.status === 'article') {
-    renderBadge(currentAnalysis.readingTimeLabel)
+  if (shouldRenderBadge(
+    currentAnalysis,
+    currentSettings.showInlineBadge,
+    dismissedSourceUrl,
+  )) {
+    renderBadge(currentAnalysis.readingTimeLabel, handleBadgeDismissed)
 
     return
   }
@@ -33,8 +44,13 @@ function runAnalysis(): void {
 }
 
 function scheduleAnalysis(): void {
+  synchronizeLocationState()
   window.clearTimeout(analysisTimer)
   analysisTimer = window.setTimeout(runAnalysis, ANALYSIS_DEBOUNCE_MS)
+}
+
+function handleBadgeDismissed(): void {
+  dismissedSourceUrl = dismissBadgeForAnalysis(currentAnalysis)
 }
 
 function installMessageListener(): void {
@@ -84,6 +100,17 @@ function installMutationObserver(): void {
   })
 }
 
+function synchronizeLocationState(): void {
+  const nextLocationUrl = document.location.href
+
+  dismissedSourceUrl = updateDismissedSourceUrlForLocationChange(
+    dismissedSourceUrl,
+    currentLocationUrl,
+    nextLocationUrl,
+  )
+  currentLocationUrl = nextLocationUrl
+}
+
 function patchHistoryMethod(
   methodName: 'pushState' | 'replaceState',
   callback: () => void,
@@ -102,4 +129,3 @@ function patchHistoryMethod(
 export function getCurrentAnalysis(): PageAnalysis {
   return currentAnalysis
 }
-
