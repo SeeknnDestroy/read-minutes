@@ -35,10 +35,7 @@ export async function saveSettings(
 ): Promise<ExtensionSettings> {
   const currentSettings = await readSettings(storageArea)
   const nextSettings = normalizeSettings({ ...currentSettings, ...updates })
-  const storedSettings = {
-    wordsPerMinute: nextSettings.wordsPerMinute,
-    showInlineBadge: nextSettings.showInlineBadge,
-  }
+  const storedSettings = pickStoredSettingsUpdates(nextSettings, updates)
 
   await storageArea.set(storedSettings)
 
@@ -64,4 +61,21 @@ export function mergeSettingsFromStorageChange(
   }
 
   return mergeSettings(currentSettings, updatedValues)
+}
+
+function pickStoredSettingsUpdates(
+  settings: ExtensionSettings,
+  updates: Partial<ExtensionSettings>,
+): Partial<ExtensionSettings> {
+  const storedSettings: Partial<ExtensionSettings> = {}
+
+  if ('wordsPerMinute' in updates) {
+    storedSettings.wordsPerMinute = settings.wordsPerMinute
+  }
+
+  if ('showInlineBadge' in updates) {
+    storedSettings.showInlineBadge = settings.showInlineBadge
+  }
+
+  return storedSettings
 }

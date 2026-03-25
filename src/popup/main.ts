@@ -2,6 +2,7 @@ import './styles.css'
 import { createGetPageAnalysisMessage } from '@/shared/messages'
 import { saveSettings, readSettings } from '@/shared/settings'
 import { defaultSettings, type ExtensionSettings, type PageAnalysis } from '@/shared/types'
+import { renderPopupContent } from './render'
 import { createPopupViewModel } from './view-model'
 
 const popupRootElement = getPopupRootElement()
@@ -36,60 +37,7 @@ function getPopupRootElement(): HTMLDivElement {
 
 function renderPopup(): void {
   const viewModel = createPopupViewModel(popupState.analysis, popupState.settings)
-  const articleMetrics = viewModel.readingTimeValue && viewModel.wordCountValue
-    ? `
-      <section class="metrics-grid">
-        <article class="metric-card">
-          <p class="metric-label">Reading time</p>
-          <p class="metric-value">${viewModel.readingTimeValue}</p>
-        </article>
-        <article class="metric-card">
-          <p class="metric-label">Word count</p>
-          <p class="metric-value">${viewModel.wordCountValue}</p>
-        </article>
-      </section>
-    `
-    : `
-      <section class="empty-state">
-        <p>${viewModel.emptyMessage}</p>
-      </section>
-    `
-
-  popupRootElement.innerHTML = `
-    <main class="popup-shell">
-      <section class="hero-card">
-        <p class="eyebrow">Read Minutes</p>
-        <div class="hero-copy">
-          <div>
-            <p class="domain">${viewModel.hostname || 'Reading time'}</p>
-            <h1 class="title">${viewModel.pageTitle}</h1>
-          </div>
-          <p class="status-pill">${viewModel.statusLabel}</p>
-        </div>
-      </section>
-      ${articleMetrics}
-      <section class="controls-card">
-        <label class="control-row" for="show-inline-badge">
-          <span class="control-copy">
-            <span class="control-label">Show inline badge</span>
-            <span class="control-help">Display a floating read-time pill on article pages.</span>
-          </span>
-          <input id="show-inline-badge" type="checkbox" ${popupState.settings.showInlineBadge ? 'checked' : ''} />
-        </label>
-        <label class="field-group" for="words-per-minute">
-          <span class="control-label">Words per minute</span>
-          <input
-            id="words-per-minute"
-            class="number-input"
-            type="number"
-            min="1"
-            step="1"
-            value="${popupState.settings.wordsPerMinute}"
-          />
-        </label>
-      </section>
-    </main>
-  `
+  renderPopupContent(popupRootElement, viewModel, popupState.settings)
 
   bindControlEvents()
 }
