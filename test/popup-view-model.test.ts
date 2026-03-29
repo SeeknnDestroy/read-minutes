@@ -19,6 +19,8 @@ describe('createPopupViewModel', () => {
     expect(viewModel.statusLabel).toBe('Article detected')
     expect(viewModel.readingTimeValue).toBe('5 min read')
     expect(viewModel.wordCountValue).toBe('1,020 words')
+    expect(viewModel.copyButtonLabel).toBe('Copy page')
+    expect(viewModel.openButtonLabel).toBe('View as Markdown')
     expect(viewModel.emptyMessage).toBeNull()
   })
 
@@ -38,5 +40,29 @@ describe('createPopupViewModel', () => {
     expect(viewModel.readingTimeValue).toBeNull()
     expect(viewModel.wordCountValue).toBeNull()
     expect(viewModel.emptyMessage).toBe('No article-like content found on this page.')
+  })
+
+  it('shows busy labels for transcript actions', () => {
+    const analysis: PageAnalysis = {
+      status: 'article',
+      hostname: 'example.com',
+      pageTitle: 'Designing Better Reading Sessions',
+      siteName: 'Example',
+      sourceUrl: 'https://example.com/designing-better-reading-sessions',
+      wordCount: 1_020,
+      minutes: 5,
+      readingTimeLabel: '5 min read',
+    }
+
+    const viewModel = createPopupViewModel(analysis, defaultSettings, {
+      busyAction: 'open',
+      isMenuOpen: true,
+      message: null,
+    })
+
+    expect(viewModel.isTranscriptActionBusy).toBe(true)
+    expect(viewModel.isTranscriptMenuOpen).toBe(true)
+    expect(viewModel.copyButtonLabel).toBe('Copy page')
+    expect(viewModel.openButtonLabel).toBe('Opening...')
   })
 })

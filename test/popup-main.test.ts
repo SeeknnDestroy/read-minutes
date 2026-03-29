@@ -22,6 +22,23 @@ describe('popup transcript actions', () => {
     expect(document.getElementById('open-markdown')).toBeNull()
   })
 
+  it('renders the redesigned popup hierarchy for article pages', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+
+    vi.stubGlobal('chrome', createChromeMock({
+      analysis: createArticleAnalysis(),
+      transcriptResult: createTranscriptReadyResult(),
+    }))
+
+    await import('@/popup/main')
+    await flushMicrotasks()
+
+    expect(document.querySelector('.popup-hero')?.textContent).toContain('Read Minutes')
+    expect(document.querySelector('.stats-grid')?.textContent).toContain('Reading time')
+    expect(document.querySelector('.transcript-dock')).not.toBeNull()
+    expect(document.querySelector('.settings-section')?.textContent).toContain('Preferences')
+  })
+
   it('copies transcript markdown for LLM use', async () => {
     document.body.innerHTML = '<div id="root"></div>'
 
@@ -51,7 +68,83 @@ describe('popup transcript actions', () => {
     expect(document.querySelector('.action-status')?.textContent).toBe('Markdown copied for LLM.')
   })
 
-  it('opens transcript view and stores the payload for the new page', async () => {
+  it('keeps the primary copy action clickable while the menu is open', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+
+    const clipboardWriteText = vi.fn(async () => undefined)
+
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: clipboardWriteText,
+      },
+    })
+
+    vi.stubGlobal('chrome', createChromeMock({
+      analysis: createArticleAnalysis(),
+      transcriptResult: createTranscriptReadyResult(),
+    }))
+
+    await import('@/popup/main')
+    await flushMicrotasks()
+
+    const initialToggleButton = document.querySelector<HTMLButtonElement>('#toggle-transcript-menu')
+
+    initialToggleButton?.click()
+    await flushMicrotasks()
+
+    const copyButton = document.querySelector<HTMLButtonElement>('#copy-markdown')
+
+    copyButton?.click()
+    await flushMicrotasks()
+
+    expect(clipboardWriteText).toHaveBeenCalledWith(createTranscriptPayload().exportText)
+    expect(document.querySelector('.action-status')?.textContent).toBe('Markdown copied for LLM.')
+  })
+
+  it('opens and closes the transcript menu', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+
+    vi.stubGlobal('chrome', createChromeMock({
+      analysis: createArticleAnalysis(),
+      transcriptResult: createTranscriptReadyResult(),
+    }))
+
+    await import('@/popup/main')
+    await flushMicrotasks()
+
+    const toggleButton = document.querySelector<HTMLButtonElement>('#toggle-transcript-menu')
+    const initialMenuElement = document.querySelector<HTMLDivElement>('#transcript-menu')
+
+    expect(initialMenuElement?.hidden).toBe(true)
+
+    toggleButton?.click()
+    await flushMicrotasks()
+
+    const openMenuElement = document.querySelector<HTMLDivElement>('#transcript-menu')
+
+    expect(openMenuElement?.hidden).toBe(false)
+
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    await flushMicrotasks()
+
+    const closedMenuElement = document.querySelector<HTMLDivElement>('#transcript-menu')
+
+    expect(closedMenuElement?.hidden).toBe(true)
+
+    const reopenedToggleButton = document.querySelector<HTMLButtonElement>('#toggle-transcript-menu')
+
+    reopenedToggleButton?.click()
+    await flushMicrotasks()
+    document.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' }))
+    await flushMicrotasks()
+
+    const escapedMenuElement = document.querySelector<HTMLDivElement>('#transcript-menu')
+
+    expect(escapedMenuElement?.hidden).toBe(true)
+  })
+
+  it('opens transcript view from the menu and stores the payload for the new page', async () => {
     document.body.innerHTML = '<div id="root"></div>'
 
     const chromeMock = createChromeMock({
@@ -64,24 +157,26 @@ describe('popup transcript actions', () => {
     await import('@/popup/main')
     await flushMicrotasks()
 
+    const toggleButton = document.querySelector<HTMLButtonElement>('#toggle-transcript-menu')
+
+    toggleButton?.click()
+    await flushMicrotasks()
+
     const openButton = document.querySelector<HTMLButtonElement>('#open-markdown')
 
     openButton?.click()
     await flushMicrotasks()
 
-    const createTabMock = chromeMock.tabs.create as ReturnType<typeof vi.fn>
-    const createdTab = createTabMock.mock.calls[0]?.[0] as { url: string } | undefined
+    const sendMessageMock = chromeMock.runtime.sendMessage as ReturnType<typeof vi.fn>
+    const openMessage = sendMessageMock.mock.calls[0]?.[0] as {
+      transcriptStorageKey: string
+      type: string
+    } | undefined
+    const transcriptStorageKey = openMessage?.transcriptStorageKey
 
-    expect(createdTab).toBeDefined()
-
-    if (!createdTab) {
-      throw new Error('Expected a transcript tab to be created.')
-    }
-
-    const createdUrl = new URL(createdTab.url)
-    const transcriptStorageKey = createdUrl.searchParams.get('transcriptKey')
-
-    expect(createdUrl.searchParams.get('view')).toBe('transcript')
+    expect(openMessage).toMatchObject({
+      type: 'read-minutes/open-transcript-view',
+    })
     expect(transcriptStorageKey).toBeTruthy()
     expect(chromeMock.storage.session.snapshot()[transcriptStorageKey as string]).toEqual(
       createTranscriptPayload(),
@@ -146,6 +241,7 @@ function createChromeMock({
       onMessage: {
         addListener: vi.fn(),
       },
+      sendMessage: vi.fn(async () => undefined),
     },
     storage: {
       local: localStorageArea,
@@ -162,7 +258,6 @@ function createChromeMock({
       },
     },
     tabs: {
-      create: vi.fn(async () => undefined),
       query: vi.fn(async () => [{ id: 1 }]),
       sendMessage: vi.fn(async (_tabId: number, message: { type: string }) => {
         if (message.type === 'read-minutes/get-page-analysis') {

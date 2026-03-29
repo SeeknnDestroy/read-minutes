@@ -9,6 +9,13 @@ export function renderPopupContent(
   rootElement.replaceChildren(createPopupShell(viewModel, settings))
 }
 
+export function renderTranscriptViewContent(
+  rootElement: HTMLDivElement,
+  viewModel: TranscriptViewModel,
+): void {
+  rootElement.replaceChildren(createTranscriptContent(viewModel))
+}
+
 function createPopupShell(
   viewModel: PopupViewModel,
   settings: ExtensionSettings,
@@ -17,80 +24,74 @@ function createPopupShell(
 
   popupShellElement.className = 'popup-shell'
   popupShellElement.append(
-    createHeroCard(viewModel),
-    createMetricsSection(viewModel),
-    createTranscriptActionsCard(viewModel),
-    createControlsCard(settings),
+    createHeroSection(viewModel),
+    createSupportSection(viewModel),
+    createTranscriptSection(viewModel),
+    createSettingsSection(settings),
   )
 
   return popupShellElement
 }
 
-export function renderTranscriptViewContent(
-  rootElement: HTMLDivElement,
-  viewModel: TranscriptViewModel,
-): void {
-  rootElement.replaceChildren(createTranscriptContent(viewModel))
-}
-
-function createHeroCard(viewModel: PopupViewModel): HTMLElement {
-  const heroCardElement = document.createElement('section')
+function createHeroSection(viewModel: PopupViewModel): HTMLElement {
+  const heroSectionElement = document.createElement('section')
+  const heroHeaderElement = document.createElement('div')
   const eyebrowElement = document.createElement('p')
-  const heroCopyElement = document.createElement('div')
-  const headerContainerElement = document.createElement('div')
+  const statusPillElement = document.createElement('p')
   const domainElement = document.createElement('p')
   const titleElement = document.createElement('h1')
-  const statusPillElement = document.createElement('p')
   const domainText = viewModel.hostname || 'Reading time'
 
-  heroCardElement.className = 'hero-card'
+  heroSectionElement.className = 'popup-hero'
+  heroHeaderElement.className = 'hero-header'
   eyebrowElement.className = 'eyebrow'
   eyebrowElement.textContent = 'Read Minutes'
-  heroCopyElement.className = 'hero-copy'
+  statusPillElement.className = 'status-pill'
+  statusPillElement.textContent = viewModel.statusLabel
   domainElement.className = 'domain'
   domainElement.textContent = domainText
   titleElement.className = 'title'
   titleElement.textContent = viewModel.pageTitle
-  statusPillElement.className = 'status-pill'
-  statusPillElement.textContent = viewModel.statusLabel
-  headerContainerElement.append(domainElement, titleElement)
-  heroCopyElement.append(headerContainerElement, statusPillElement)
-  heroCardElement.append(eyebrowElement, heroCopyElement)
+  heroHeaderElement.append(eyebrowElement, statusPillElement)
+  heroSectionElement.append(heroHeaderElement, domainElement, titleElement)
 
-  return heroCardElement
+  return heroSectionElement
 }
 
-function createMetricsSection(viewModel: PopupViewModel): HTMLElement {
+function createSupportSection(viewModel: PopupViewModel): HTMLElement {
   const hasArticleMetrics = Boolean(viewModel.readingTimeValue && viewModel.wordCountValue)
 
   if (!hasArticleMetrics) {
     return createEmptyState(viewModel.emptyMessage)
   }
 
-  const metricsGridElement = document.createElement('section')
+  const supportSectionElement = document.createElement('section')
+  const statsGridElement = document.createElement('div')
 
-  metricsGridElement.className = 'metrics-grid'
-  metricsGridElement.append(
-    createMetricCard('Reading time', viewModel.readingTimeValue ?? ''),
-    createMetricCard('Word count', viewModel.wordCountValue ?? ''),
+  supportSectionElement.className = 'popup-support'
+  statsGridElement.className = 'stats-grid'
+  statsGridElement.append(
+    createStatItem('Reading time', viewModel.readingTimeValue ?? ''),
+    createStatItem('Word count', viewModel.wordCountValue ?? ''),
   )
+  supportSectionElement.append(statsGridElement)
 
-  return metricsGridElement
+  return supportSectionElement
 }
 
-function createMetricCard(label: string, value: string): HTMLElement {
-  const metricCardElement = document.createElement('article')
-  const metricLabelElement = document.createElement('p')
-  const metricValueElement = document.createElement('p')
+function createStatItem(label: string, value: string): HTMLElement {
+  const statItemElement = document.createElement('article')
+  const statLabelElement = document.createElement('p')
+  const statValueElement = document.createElement('p')
 
-  metricCardElement.className = 'metric-card'
-  metricLabelElement.className = 'metric-label'
-  metricLabelElement.textContent = label
-  metricValueElement.className = 'metric-value'
-  metricValueElement.textContent = value
-  metricCardElement.append(metricLabelElement, metricValueElement)
+  statItemElement.className = 'stat-item'
+  statLabelElement.className = 'metric-label'
+  statLabelElement.textContent = label
+  statValueElement.className = 'metric-value'
+  statValueElement.textContent = value
+  statItemElement.append(statLabelElement, statValueElement)
 
-  return metricCardElement
+  return statItemElement
 }
 
 function createEmptyState(message: string | null): HTMLElement {
@@ -104,62 +105,160 @@ function createEmptyState(message: string | null): HTMLElement {
   return emptyStateElement
 }
 
-function createTranscriptActionsCard(viewModel: PopupViewModel): HTMLElement {
-  const shouldShowTranscriptActions = viewModel.showTranscriptActions
+function createTranscriptSection(viewModel: PopupViewModel): HTMLElement {
+  const sectionElement = document.createElement('section')
+  const headingElement = document.createElement('div')
+  const labelElement = document.createElement('p')
+  const headingTextElement = document.createElement('p')
 
-  if (!shouldShowTranscriptActions) {
-    return document.createDocumentFragment() as unknown as HTMLElement
+  sectionElement.className = 'transcript-section'
+  labelElement.className = 'section-label'
+  labelElement.textContent = 'Page tools'
+  headingTextElement.className = 'section-heading'
+  headingTextElement.textContent = 'Use the article as clean markdown.'
+  headingElement.className = 'section-copy'
+  headingElement.append(labelElement, headingTextElement)
+  sectionElement.append(headingElement)
+
+  if (viewModel.showTranscriptActions) {
+    sectionElement.append(createTranscriptDock(viewModel))
+  } else {
+    sectionElement.append(createTranscriptEmptyState())
   }
 
-  const actionsCardElement = document.createElement('section')
-  const actionsHeaderElement = document.createElement('div')
-  const actionsLabelElement = document.createElement('p')
-  const actionsHelpElement = document.createElement('p')
-  const buttonsRowElement = document.createElement('div')
-  const copyButtonElement = document.createElement('button')
-  const openButtonElement = document.createElement('button')
+  return sectionElement
+}
 
-  actionsCardElement.className = 'actions-card'
-  actionsHeaderElement.className = 'actions-header'
-  actionsLabelElement.className = 'control-label'
-  actionsLabelElement.textContent = 'Markdown tools'
-  actionsHelpElement.className = 'control-help'
-  actionsHelpElement.textContent = 'Copy clean markdown for an LLM or open it in a dedicated page.'
-  buttonsRowElement.className = 'actions-row'
+function createTranscriptDock(viewModel: PopupViewModel): HTMLElement {
+  const transcriptDockElement = document.createElement('div')
+  const splitButtonElement = document.createElement('div')
+  const copyButtonElement = document.createElement('button')
+  const copyButtonIconElement = createIconElement('copy')
+  const copyButtonLabelElement = document.createElement('span')
+  const toggleButtonElement = document.createElement('button')
+  const toggleButtonIconElement = createIconElement('chevron')
+  const menuElement = document.createElement('div')
+
+  transcriptDockElement.className = 'transcript-dock'
+  splitButtonElement.className = 'split-button'
   copyButtonElement.id = 'copy-markdown'
-  copyButtonElement.className = 'action-button'
+  copyButtonElement.className = 'dock-primary-button'
   copyButtonElement.type = 'button'
-  copyButtonElement.textContent = viewModel.copyButtonLabel
   copyButtonElement.disabled = viewModel.isTranscriptActionBusy
-  openButtonElement.id = 'open-markdown'
-  openButtonElement.className = 'action-button action-button-secondary'
-  openButtonElement.type = 'button'
-  openButtonElement.textContent = viewModel.openButtonLabel
-  openButtonElement.disabled = viewModel.isTranscriptActionBusy
-  actionsHeaderElement.append(actionsLabelElement, actionsHelpElement)
-  buttonsRowElement.append(copyButtonElement, openButtonElement)
-  actionsCardElement.append(actionsHeaderElement, buttonsRowElement)
+  copyButtonLabelElement.textContent = viewModel.copyButtonLabel
+  copyButtonElement.append(copyButtonIconElement, copyButtonLabelElement)
+  toggleButtonElement.id = 'toggle-transcript-menu'
+  toggleButtonElement.className = 'dock-toggle-button'
+  toggleButtonElement.type = 'button'
+  toggleButtonElement.disabled = viewModel.isTranscriptActionBusy
+  toggleButtonElement.setAttribute('aria-controls', 'transcript-menu')
+  toggleButtonElement.setAttribute('aria-expanded', String(viewModel.isTranscriptMenuOpen))
+  toggleButtonElement.setAttribute('aria-label', 'Show more transcript actions')
+  toggleButtonIconElement.classList.add('toggle-icon')
+
+  if (viewModel.isTranscriptMenuOpen) {
+    toggleButtonIconElement.classList.add('toggle-icon-open')
+  }
+
+  toggleButtonElement.append(toggleButtonIconElement)
+  splitButtonElement.append(copyButtonElement, toggleButtonElement)
+  menuElement.id = 'transcript-menu'
+  menuElement.className = 'transcript-menu'
+  menuElement.hidden = !viewModel.isTranscriptMenuOpen
+  menuElement.append(
+    createTranscriptMenuItem({
+      buttonId: 'copy-markdown-menu-item',
+      description: 'Copy page as Markdown for LLMs',
+      iconName: 'copy',
+      isBusy: viewModel.copyButtonLabel === 'Copying...',
+      label: viewModel.copyButtonLabel,
+    }),
+    createTranscriptMenuItem({
+      buttonId: 'open-markdown',
+      description: 'Open this page as plain text',
+      iconName: 'markdown',
+      isBusy: viewModel.openButtonLabel === 'Opening...',
+      label: viewModel.openButtonLabel,
+    }),
+  )
+  transcriptDockElement.append(splitButtonElement, menuElement)
 
   if (viewModel.transcriptActionMessage) {
     const actionStatusElement = document.createElement('p')
 
     actionStatusElement.className = 'action-status'
     actionStatusElement.textContent = viewModel.transcriptActionMessage
-    actionsCardElement.append(actionStatusElement)
+    transcriptDockElement.append(actionStatusElement)
   }
 
-  return actionsCardElement
+  return transcriptDockElement
 }
 
-function createControlsCard(settings: ExtensionSettings): HTMLElement {
-  const controlsCardElement = document.createElement('section')
+function createTranscriptMenuItem({
+  buttonId,
+  description,
+  iconName,
+  isBusy,
+  label,
+}: {
+  buttonId: string
+  description: string
+  iconName: 'copy' | 'markdown'
+  isBusy: boolean
+  label: string
+}): HTMLElement {
+  const buttonElement = document.createElement('button')
+  const iconElement = createIconElement(iconName)
+  const copyElement = document.createElement('span')
+  const labelElement = document.createElement('span')
+  const descriptionElement = document.createElement('span')
+
+  buttonElement.id = buttonId
+  buttonElement.className = 'menu-button'
+  buttonElement.type = 'button'
+  buttonElement.disabled = isBusy
+  copyElement.className = 'menu-copy'
+  labelElement.className = 'menu-label'
+  labelElement.textContent = label
+  descriptionElement.className = 'menu-description'
+  descriptionElement.textContent = description
+  copyElement.append(labelElement, descriptionElement)
+  buttonElement.append(iconElement, copyElement)
+
+  return buttonElement
+}
+
+function createTranscriptEmptyState(): HTMLElement {
+  const emptyCopyElement = document.createElement('p')
+
+  emptyCopyElement.className = 'empty-action-copy'
+  emptyCopyElement.textContent = 'Transcript actions appear when an article is detected.'
+
+  return emptyCopyElement
+}
+
+function createSettingsSection(settings: ExtensionSettings): HTMLElement {
+  const settingsSectionElement = document.createElement('section')
+  const headingElement = document.createElement('div')
+  const labelElement = document.createElement('p')
+  const headingTextElement = document.createElement('p')
   const inlineBadgeControlElement = createInlineBadgeControl(settings.showInlineBadge)
   const wordsPerMinuteFieldElement = createWordsPerMinuteField(settings.wordsPerMinute)
 
-  controlsCardElement.className = 'controls-card'
-  controlsCardElement.append(inlineBadgeControlElement, wordsPerMinuteFieldElement)
+  settingsSectionElement.className = 'settings-section'
+  headingElement.className = 'section-copy'
+  labelElement.className = 'section-label'
+  labelElement.textContent = 'Preferences'
+  headingTextElement.className = 'section-heading'
+  headingTextElement.textContent = 'Tune the inline dock and your reading-speed estimate.'
+  headingElement.append(labelElement, headingTextElement)
+  settingsSectionElement.append(
+    headingElement,
+    inlineBadgeControlElement,
+    wordsPerMinuteFieldElement,
+  )
 
-  return controlsCardElement
+  return settingsSectionElement
 }
 
 function createInlineBadgeControl(showInlineBadge: boolean): HTMLElement {
@@ -173,12 +272,38 @@ function createInlineBadgeControl(showInlineBadge: boolean): HTMLElement {
   labelElement.htmlFor = 'show-inline-badge'
   controlCopyElement.className = 'control-copy'
   controlLabelElement.className = 'control-label'
-  controlLabelElement.textContent = 'Show inline badge'
+  controlLabelElement.textContent = 'Show inline dock'
   controlHelpElement.className = 'control-help'
-  controlHelpElement.textContent = 'Display a floating read-time pill on article pages.'
+  controlHelpElement.textContent = 'Keep the floating page tools visible on article pages.'
   inputElement.id = 'show-inline-badge'
   inputElement.type = 'checkbox'
   inputElement.checked = showInlineBadge
+  controlCopyElement.append(controlLabelElement, controlHelpElement)
+  labelElement.append(controlCopyElement, inputElement)
+
+  return labelElement
+}
+
+function createWordsPerMinuteField(wordsPerMinute: number): HTMLElement {
+  const labelElement = document.createElement('label')
+  const controlCopyElement = document.createElement('span')
+  const controlLabelElement = document.createElement('span')
+  const controlHelpElement = document.createElement('span')
+  const inputElement = document.createElement('input')
+
+  labelElement.className = 'field-group'
+  labelElement.htmlFor = 'words-per-minute'
+  controlCopyElement.className = 'control-copy'
+  controlLabelElement.className = 'control-label'
+  controlLabelElement.textContent = 'Words per minute'
+  controlHelpElement.className = 'control-help'
+  controlHelpElement.textContent = 'Update the reading-time estimate for this browser.'
+  inputElement.id = 'words-per-minute'
+  inputElement.className = 'number-input'
+  inputElement.type = 'number'
+  inputElement.min = '1'
+  inputElement.step = '1'
+  inputElement.value = String(wordsPerMinute)
   controlCopyElement.append(controlLabelElement, controlHelpElement)
   labelElement.append(controlCopyElement, inputElement)
 
@@ -197,22 +322,55 @@ function createTranscriptContent(viewModel: TranscriptViewModel): HTMLElement {
   return transcriptMarkdownElement
 }
 
-function createWordsPerMinuteField(wordsPerMinute: number): HTMLElement {
-  const labelElement = document.createElement('label')
-  const controlLabelElement = document.createElement('span')
-  const inputElement = document.createElement('input')
+function createIconElement(iconName: 'chevron' | 'copy' | 'markdown'): SVGElement {
+  const iconElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
 
-  labelElement.className = 'field-group'
-  labelElement.htmlFor = 'words-per-minute'
-  controlLabelElement.className = 'control-label'
-  controlLabelElement.textContent = 'Words per minute'
-  inputElement.id = 'words-per-minute'
-  inputElement.className = 'number-input'
-  inputElement.type = 'number'
-  inputElement.min = '1'
-  inputElement.step = '1'
-  inputElement.value = String(wordsPerMinute)
-  labelElement.append(controlLabelElement, inputElement)
+  iconElement.setAttribute('viewBox', '0 0 24 24')
+  iconElement.setAttribute('aria-hidden', 'true')
 
-  return labelElement
+  if (iconName === 'copy') {
+    const firstRectElement = document.createElementNS(iconElement.namespaceURI, 'rect')
+    const secondRectElement = document.createElementNS(iconElement.namespaceURI, 'rect')
+
+    iconElement.classList.add('action-icon')
+    firstRectElement.setAttribute('x', '9')
+    firstRectElement.setAttribute('y', '7')
+    firstRectElement.setAttribute('width', '10')
+    firstRectElement.setAttribute('height', '12')
+    firstRectElement.setAttribute('rx', '2')
+    secondRectElement.setAttribute('x', '5')
+    secondRectElement.setAttribute('y', '3')
+    secondRectElement.setAttribute('width', '10')
+    secondRectElement.setAttribute('height', '12')
+    secondRectElement.setAttribute('rx', '2')
+    iconElement.append(firstRectElement, secondRectElement)
+
+    return iconElement
+  }
+
+  if (iconName === 'markdown') {
+    const frameElement = document.createElementNS(iconElement.namespaceURI, 'rect')
+    const leftPathElement = document.createElementNS(iconElement.namespaceURI, 'path')
+    const rightPathElement = document.createElementNS(iconElement.namespaceURI, 'path')
+
+    iconElement.classList.add('action-icon')
+    frameElement.setAttribute('x', '3')
+    frameElement.setAttribute('y', '5')
+    frameElement.setAttribute('width', '18')
+    frameElement.setAttribute('height', '14')
+    frameElement.setAttribute('rx', '3')
+    leftPathElement.setAttribute('d', 'M7 15V9l3 3 3-3v6')
+    rightPathElement.setAttribute('d', 'M15 15h2.5a1.5 1.5 0 0 0 0-3H15')
+    iconElement.append(frameElement, leftPathElement, rightPathElement)
+
+    return iconElement
+  }
+
+  const chevronPathElement = document.createElementNS(iconElement.namespaceURI, 'path')
+
+  iconElement.classList.add('chevron-icon')
+  chevronPathElement.setAttribute('d', 'm6 9 6 6 6-6')
+  iconElement.append(chevronPathElement)
+
+  return iconElement
 }

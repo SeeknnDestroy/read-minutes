@@ -3,6 +3,7 @@ import type { ExtensionSettings, PageAnalysis, TranscriptPayload } from '@/share
 
 export interface PopupTranscriptActionState {
   busyAction: 'copy' | 'open' | null
+  isMenuOpen: boolean
   message: string | null
 }
 
@@ -11,6 +12,7 @@ export interface PopupViewModel {
   emptyMessage: string | null
   hostname: string
   isTranscriptActionBusy: boolean
+  isTranscriptMenuOpen: boolean
   openButtonLabel: string
   pageTitle: string
   readingTimeValue: string | null
@@ -27,6 +29,7 @@ export interface TranscriptViewModel {
 
 const defaultTranscriptActionState: PopupTranscriptActionState = {
   busyAction: null,
+  isMenuOpen: false,
   message: null,
 }
 
@@ -37,11 +40,12 @@ export function createPopupViewModel(
 ): PopupViewModel {
   if (!analysis) {
     return {
-      copyButtonLabel: 'Copy for LLM',
+      copyButtonLabel: 'Copy page',
       emptyMessage: 'No article-like content found on this page.',
       hostname: '',
       isTranscriptActionBusy: false,
-      openButtonLabel: 'Open Markdown',
+      isTranscriptMenuOpen: false,
+      openButtonLabel: 'View as Markdown',
       pageTitle: 'Current page',
       readingTimeValue: null,
       showTranscriptActions: false,
@@ -53,11 +57,12 @@ export function createPopupViewModel(
 
   if (analysis.status === 'no-article') {
     return {
-      copyButtonLabel: 'Copy for LLM',
+      copyButtonLabel: 'Copy page',
       emptyMessage: 'No article-like content found on this page.',
       hostname: analysis.hostname,
       isTranscriptActionBusy: false,
-      openButtonLabel: 'Open Markdown',
+      isTranscriptMenuOpen: false,
+      openButtonLabel: 'View as Markdown',
       pageTitle: analysis.pageTitle,
       readingTimeValue: null,
       showTranscriptActions: false,
@@ -72,11 +77,12 @@ export function createPopupViewModel(
   const isOpenActionBusy = transcriptActionState.busyAction === 'open'
 
   return {
-    copyButtonLabel: isCopyActionBusy ? 'Copying...' : 'Copy for LLM',
+    copyButtonLabel: isCopyActionBusy ? 'Copying...' : 'Copy page',
     emptyMessage: null,
     hostname: analysis.siteName,
     isTranscriptActionBusy: transcriptActionState.busyAction !== null,
-    openButtonLabel: isOpenActionBusy ? 'Opening...' : 'Open Markdown',
+    isTranscriptMenuOpen: transcriptActionState.isMenuOpen,
+    openButtonLabel: isOpenActionBusy ? 'Opening...' : 'View as Markdown',
     pageTitle: analysis.pageTitle,
     readingTimeValue: formatReadingTime(minutes),
     showTranscriptActions: true,
