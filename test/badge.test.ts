@@ -6,7 +6,7 @@ describe('renderBadge', () => {
     removeBadge()
   })
 
-  it('centers the reading context and renders feedback as a toast popup', () => {
+  it('left-aligns the reading context with inset spacing and renders feedback as a toast popup', () => {
     renderBadge(
       {
         copyButtonLabel: 'Copy page',
@@ -24,8 +24,8 @@ describe('renderBadge', () => {
     const badgeStyleElement = badgeHost?.shadowRoot?.querySelector('style')
     const toastElement = badgeHost?.shadowRoot?.querySelector<HTMLElement>('[data-role="badge-toast"]')
 
-    expect(badgeStyleElement?.textContent).toContain('justify-self: center;')
-    expect(badgeStyleElement?.textContent).toContain('text-align: center;')
+    expect(badgeStyleElement?.textContent).toContain('padding-inline-start: 14px;')
+    expect(badgeStyleElement?.textContent).toContain('text-align: left;')
     expect(toastElement?.textContent).toBe('Markdown copied for LLM.')
   })
 

@@ -67,7 +67,7 @@ function getBadgeElements(): {
       display: grid;
       position: relative;
       width: min(360px, calc(100vw - 24px));
-      padding: 10px;
+      padding: 12px;
       border: 1px solid rgba(255, 241, 222, 0.12);
       border-radius: 18px;
       background:
@@ -85,15 +85,16 @@ function getBadgeElements(): {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto auto;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .dock-context {
       display: grid;
-      gap: 2px;
+      gap: 3px;
       min-width: 0;
-      justify-self: center;
-      text-align: center;
+      padding-inline-start: 14px;
+      justify-self: stretch;
+      text-align: left;
     }
 
     .dock-label {
@@ -109,10 +110,10 @@ function getBadgeElements(): {
       margin: 0;
       color: #fff8ef;
       font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 600;
       letter-spacing: -0.03em;
-      line-height: 0.95;
+      line-height: 1;
     }
 
     button {
@@ -133,10 +134,11 @@ function getBadgeElements(): {
       justify-content: center;
       gap: 9px;
       min-height: 42px;
-      padding: 0 14px;
+      padding: 0 18px;
       border: 1px solid rgba(255, 241, 222, 0.12);
       border-radius: 14px;
-      background: rgba(255, 255, 255, 0.04);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.03) 100%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
       cursor: pointer;
       white-space: nowrap;
       transition:
@@ -148,6 +150,7 @@ function getBadgeElements(): {
       color: #fff7ec;
       font-size: 14px;
       font-weight: 700;
+      letter-spacing: -0.01em;
     }
 
     .dock-close {
@@ -157,7 +160,7 @@ function getBadgeElements(): {
       width: 38px;
       height: 38px;
       border-radius: 12px;
-      background: rgba(255, 255, 255, 0.05);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.035) 100%);
       cursor: pointer;
       font-size: 18px;
       line-height: 1;
