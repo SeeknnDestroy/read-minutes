@@ -179,7 +179,7 @@ describe('content script lifecycle', () => {
     expect(getBadgeText()).toContain('Markdown copied for LLM.')
   })
 
-  it('shows side-by-side inline actions without a menu toggle', async () => {
+  it('shows a simplified inline badge with copy and dismiss only', async () => {
     const analyzeDocument = vi.fn(() => createArticleAnalysis())
     const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
     const chromeMock = createContentChromeMock()
@@ -194,50 +194,7 @@ describe('content script lifecycle', () => {
     await flushMicrotasks()
 
     expect(getBadgeButton('[data-role="badge-copy"]')).not.toBeNull()
-    const openButton = getBadgeButton('[data-role="badge-open"]')
-
-    expect(openButton).not.toBeNull()
-    expect(getBadgeButton('[data-role="badge-menu-toggle"]')).toBeNull()
-  })
-
-  it('opens transcript view from the inline dock action row', async () => {
-    const analyzeDocument = vi.fn(() => createArticleAnalysis())
-    const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
-    const chromeMock = createContentChromeMock()
-    const openWindow = vi.fn()
-
-    window.open = openWindow as typeof window.open
-
-    mockInlineDockDependencies({
-      analyzeDocument,
-      chromeMock,
-      createTranscriptResultMock,
-    })
-
-    await import('@/content/main')
-    await flushMicrotasks()
-
-    const openButton = getBadgeButton('[data-role="badge-open"]')
-
-    openButton?.click()
-    await flushMicrotasks()
-
-    const createdWindowUrl = openWindow.mock.calls[0]?.[0] as string | undefined
-
-    expect(createdWindowUrl).toBeDefined()
-
-    if (!createdWindowUrl) {
-      throw new Error('Expected the inline dock to open a transcript window.')
-    }
-
-    const createdUrl = new URL(createdWindowUrl)
-    const transcriptStorageKey = createdUrl.searchParams.get('transcriptKey')
-
-    expect(createdUrl.searchParams.get('view')).toBe('transcript')
-    expect(chromeMock.storage.session.snapshot()[transcriptStorageKey as string]).toEqual(
-      createTranscriptPayload(),
-    )
-    expect(getBadgeText()).toContain('Opened markdown in a new tab.')
+    expect(getBadgeButton('[data-role="badge-open"]')).toBeNull()
   })
 
   it('keeps the inline dock hidden after dismissal on the same page', async () => {

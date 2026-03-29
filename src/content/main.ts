@@ -2,12 +2,7 @@ import { ANALYSIS_DEBOUNCE_MS, BADGE_HOST_ID, CONTENT_OBSERVER_IDLE_MS } from '@
 import { analyzeDocument } from '@/shared/analysis'
 import { isGetPageAnalysisMessage, isGetPageTranscriptMessage } from '@/shared/messages'
 import { mergeSettingsFromStorageChange, readSettings } from '@/shared/settings'
-import {
-  createTranscriptStorageKey,
-  saveTranscriptPayload,
-} from '@/shared/transcript-storage'
 import { createTranscriptResult } from '@/shared/transcript'
-import { openTranscriptView } from '@/shared/transcript-view'
 import {
   defaultSettings,
   type ArticleAnalysis,
@@ -97,30 +92,23 @@ function handleBadgeDismissed(): void {
 
 function renderInlineDock(analysis: ArticleAnalysis): void {
   const isCopyActionBusy = inlineDockState.busyAction === 'copy'
-  const isOpenActionBusy = inlineDockState.busyAction === 'open'
 
   renderBadge(
     {
       copyButtonLabel: isCopyActionBusy ? 'Copying...' : 'Copy page',
       isActionBusy: inlineDockState.busyAction !== null,
       message: inlineDockState.message,
-      openButtonLabel: isOpenActionBusy ? 'Opening...' : 'View as Markdown',
       readingTimeLabel: analysis.readingTimeLabel,
     },
     {
       onCopy: handleInlineCopyRequested,
       onDismiss: handleBadgeDismissed,
-      onOpen: handleInlineOpenRequested,
     },
   )
 }
 
 function handleInlineCopyRequested(): void {
   void handleInlineCopy()
-}
-
-function handleInlineOpenRequested(): void {
-  void handleInlineOpen()
 }
 
 function installMessageListener(): void {
@@ -176,40 +164,6 @@ async function handleInlineCopy(): Promise<void> {
     updateInlineDockState({
       busyAction: null,
       message: 'Copying markdown failed.',
-    })
-  }
-}
-
-async function handleInlineOpen(): Promise<void> {
-  updateInlineDockState({
-    busyAction: 'open',
-    message: null,
-  })
-
-  try {
-    const transcriptResult = await createTranscriptResult(document)
-
-    if (transcriptResult.status !== 'ready') {
-      updateInlineDockState({
-        busyAction: null,
-        message: 'Markdown transcript is unavailable for this page.',
-      })
-
-      return
-    }
-
-    const transcriptStorageKey = createTranscriptStorageKey()
-
-    await saveTranscriptPayload(transcriptStorageKey, transcriptResult.payload)
-    await openTranscriptView(transcriptStorageKey)
-    updateInlineDockState({
-      busyAction: null,
-      message: 'Opened markdown in a new tab.',
-    })
-  } catch {
-    updateInlineDockState({
-      busyAction: null,
-      message: 'Opening markdown failed.',
     })
   }
 }

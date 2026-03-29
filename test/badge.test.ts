@@ -14,13 +14,11 @@ describe('renderBadge', () => {
         copyButtonLabel: 'Copy page',
         isActionBusy: false,
         message: null,
-        openButtonLabel: 'View as Markdown',
         readingTimeLabel: '8 min read',
       },
       {
         onCopy: vi.fn(),
         onDismiss: handleDismiss,
-        onOpen: vi.fn(),
       },
     )
 
