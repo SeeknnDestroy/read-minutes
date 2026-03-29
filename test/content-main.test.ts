@@ -179,18 +179,10 @@ describe('content script lifecycle', () => {
     expect(getBadgeText()).toContain('Markdown copied for LLM.')
   })
 
-  it('keeps the inline primary copy action clickable while the menu is open', async () => {
+  it('shows side-by-side inline actions without a menu toggle', async () => {
     const analyzeDocument = vi.fn(() => createArticleAnalysis())
     const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
     const chromeMock = createContentChromeMock()
-    const clipboardWriteText = vi.fn(async () => undefined)
-
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: {
-        writeText: clipboardWriteText,
-      },
-    })
 
     mockInlineDockDependencies({
       analyzeDocument,
@@ -201,24 +193,20 @@ describe('content script lifecycle', () => {
     await import('@/content/main')
     await flushMicrotasks()
 
-    const toggleButton = getBadgeButton('[data-role="badge-menu-toggle"]')
+    expect(getBadgeButton('[data-role="badge-copy"]')).not.toBeNull()
+    const openButton = getBadgeButton('[data-role="badge-open"]')
 
-    toggleButton?.click()
-    await flushMicrotasks()
-
-    const badgeCopyButton = getBadgeButton('[data-role="badge-copy"]')
-
-    badgeCopyButton?.click()
-    await flushMicrotasks()
-
-    expect(clipboardWriteText).toHaveBeenCalledWith(createTranscriptPayload().exportText)
-    expect(getBadgeText()).toContain('Markdown copied for LLM.')
+    expect(openButton).not.toBeNull()
+    expect(getBadgeButton('[data-role="badge-menu-toggle"]')).toBeNull()
   })
 
-  it('opens transcript view from the inline dock menu', async () => {
+  it('opens transcript view from the inline dock action row', async () => {
     const analyzeDocument = vi.fn(() => createArticleAnalysis())
     const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
     const chromeMock = createContentChromeMock()
+    const openWindow = vi.fn()
+
+    window.open = openWindow as typeof window.open
 
     mockInlineDockDependencies({
       analyzeDocument,
@@ -227,11 +215,6 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
-
-    const toggleButton = getBadgeButton('[data-role="badge-menu-toggle"]')
-
-    toggleButton?.click()
     await flushMicrotasks()
 
     const openButton = getBadgeButton('[data-role="badge-open"]')
@@ -239,16 +222,18 @@ describe('content script lifecycle', () => {
     openButton?.click()
     await flushMicrotasks()
 
-    const sendMessageMock = chromeMock.runtime.sendMessage as ReturnType<typeof vi.fn>
-    const openMessage = sendMessageMock.mock.calls[0]?.[0] as {
-      transcriptStorageKey: string
-      type: string
-    } | undefined
-    const transcriptStorageKey = openMessage?.transcriptStorageKey
+    const createdWindowUrl = openWindow.mock.calls[0]?.[0] as string | undefined
 
-    expect(openMessage).toMatchObject({
-      type: 'read-minutes/open-transcript-view',
-    })
+    expect(createdWindowUrl).toBeDefined()
+
+    if (!createdWindowUrl) {
+      throw new Error('Expected the inline dock to open a transcript window.')
+    }
+
+    const createdUrl = new URL(createdWindowUrl)
+    const transcriptStorageKey = createdUrl.searchParams.get('transcriptKey')
+
+    expect(createdUrl.searchParams.get('view')).toBe('transcript')
     expect(chromeMock.storage.session.snapshot()[transcriptStorageKey as string]).toEqual(
       createTranscriptPayload(),
     )
@@ -341,7 +326,7 @@ function createContentChromeMock() {
 
   return {
     runtime: {
-      sendMessage: vi.fn(async () => undefined),
+      getURL: vi.fn((path: string) => `chrome-extension://test-extension/${path}`),
       onMessage: {
         addListener: vi.fn(),
       },

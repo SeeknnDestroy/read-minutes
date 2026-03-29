@@ -56,12 +56,10 @@ describe('createPopupViewModel', () => {
 
     const viewModel = createPopupViewModel(analysis, defaultSettings, {
       busyAction: 'open',
-      isMenuOpen: true,
       message: null,
     })
 
     expect(viewModel.isTranscriptActionBusy).toBe(true)
-    expect(viewModel.isTranscriptMenuOpen).toBe(true)
     expect(viewModel.copyButtonLabel).toBe('Copy page')
     expect(viewModel.openButtonLabel).toBe('Opening...')
   })

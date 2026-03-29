@@ -131,57 +131,27 @@ function createTranscriptSection(viewModel: PopupViewModel): HTMLElement {
 
 function createTranscriptDock(viewModel: PopupViewModel): HTMLElement {
   const transcriptDockElement = document.createElement('div')
-  const splitButtonElement = document.createElement('div')
   const copyButtonElement = document.createElement('button')
-  const copyButtonIconElement = createIconElement('copy')
-  const copyButtonLabelElement = document.createElement('span')
-  const toggleButtonElement = document.createElement('button')
-  const toggleButtonIconElement = createIconElement('chevron')
-  const menuElement = document.createElement('div')
+  const openButtonElement = document.createElement('button')
 
   transcriptDockElement.className = 'transcript-dock'
-  splitButtonElement.className = 'split-button'
   copyButtonElement.id = 'copy-markdown'
-  copyButtonElement.className = 'dock-primary-button'
+  copyButtonElement.className = 'dock-action-button'
   copyButtonElement.type = 'button'
   copyButtonElement.disabled = viewModel.isTranscriptActionBusy
-  copyButtonLabelElement.textContent = viewModel.copyButtonLabel
-  copyButtonElement.append(copyButtonIconElement, copyButtonLabelElement)
-  toggleButtonElement.id = 'toggle-transcript-menu'
-  toggleButtonElement.className = 'dock-toggle-button'
-  toggleButtonElement.type = 'button'
-  toggleButtonElement.disabled = viewModel.isTranscriptActionBusy
-  toggleButtonElement.setAttribute('aria-controls', 'transcript-menu')
-  toggleButtonElement.setAttribute('aria-expanded', String(viewModel.isTranscriptMenuOpen))
-  toggleButtonElement.setAttribute('aria-label', 'Show more transcript actions')
-  toggleButtonIconElement.classList.add('toggle-icon')
-
-  if (viewModel.isTranscriptMenuOpen) {
-    toggleButtonIconElement.classList.add('toggle-icon-open')
-  }
-
-  toggleButtonElement.append(toggleButtonIconElement)
-  splitButtonElement.append(copyButtonElement, toggleButtonElement)
-  menuElement.id = 'transcript-menu'
-  menuElement.className = 'transcript-menu'
-  menuElement.hidden = !viewModel.isTranscriptMenuOpen
-  menuElement.append(
-    createTranscriptMenuItem({
-      buttonId: 'copy-markdown-menu-item',
-      description: 'Copy page as Markdown for LLMs',
-      iconName: 'copy',
-      isBusy: viewModel.copyButtonLabel === 'Copying...',
-      label: viewModel.copyButtonLabel,
-    }),
-    createTranscriptMenuItem({
-      buttonId: 'open-markdown',
-      description: 'Open this page as plain text',
-      iconName: 'markdown',
-      isBusy: viewModel.openButtonLabel === 'Opening...',
-      label: viewModel.openButtonLabel,
-    }),
+  copyButtonElement.append(
+    createIconElement('copy'),
+    createActionButtonCopy(viewModel.copyButtonLabel, 'Copy page as Markdown for LLMs'),
   )
-  transcriptDockElement.append(splitButtonElement, menuElement)
+  openButtonElement.id = 'open-markdown'
+  openButtonElement.className = 'dock-action-button dock-action-button-secondary'
+  openButtonElement.type = 'button'
+  openButtonElement.disabled = viewModel.isTranscriptActionBusy
+  openButtonElement.append(
+    createIconElement('markdown'),
+    createActionButtonCopy(viewModel.openButtonLabel, 'Open this page as plain text'),
+  )
+  transcriptDockElement.append(copyButtonElement, openButtonElement)
 
   if (viewModel.transcriptActionMessage) {
     const actionStatusElement = document.createElement('p')
@@ -194,38 +164,22 @@ function createTranscriptDock(viewModel: PopupViewModel): HTMLElement {
   return transcriptDockElement
 }
 
-function createTranscriptMenuItem({
-  buttonId,
-  description,
-  iconName,
-  isBusy,
-  label,
-}: {
-  buttonId: string
-  description: string
-  iconName: 'copy' | 'markdown'
-  isBusy: boolean
-  label: string
-}): HTMLElement {
-  const buttonElement = document.createElement('button')
-  const iconElement = createIconElement(iconName)
+function createActionButtonCopy(
+  label: string,
+  description: string,
+): HTMLElement {
   const copyElement = document.createElement('span')
   const labelElement = document.createElement('span')
   const descriptionElement = document.createElement('span')
 
-  buttonElement.id = buttonId
-  buttonElement.className = 'menu-button'
-  buttonElement.type = 'button'
-  buttonElement.disabled = isBusy
-  copyElement.className = 'menu-copy'
-  labelElement.className = 'menu-label'
+  copyElement.className = 'action-button-copy'
+  labelElement.className = 'action-button-label'
   labelElement.textContent = label
-  descriptionElement.className = 'menu-description'
+  descriptionElement.className = 'action-button-description'
   descriptionElement.textContent = description
   copyElement.append(labelElement, descriptionElement)
-  buttonElement.append(iconElement, copyElement)
 
-  return buttonElement
+  return copyElement
 }
 
 function createTranscriptEmptyState(): HTMLElement {
@@ -322,7 +276,7 @@ function createTranscriptContent(viewModel: TranscriptViewModel): HTMLElement {
   return transcriptMarkdownElement
 }
 
-function createIconElement(iconName: 'chevron' | 'copy' | 'markdown'): SVGElement {
+function createIconElement(iconName: 'copy' | 'markdown'): SVGElement {
   const iconElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
 
   iconElement.setAttribute('viewBox', '0 0 24 24')
@@ -365,12 +319,6 @@ function createIconElement(iconName: 'chevron' | 'copy' | 'markdown'): SVGElemen
 
     return iconElement
   }
-
-  const chevronPathElement = document.createElementNS(iconElement.namespaceURI, 'path')
-
-  iconElement.classList.add('chevron-icon')
-  chevronPathElement.setAttribute('d', 'm6 9 6 6 6-6')
-  iconElement.append(chevronPathElement)
 
   return iconElement
 }

@@ -5,5 +5,4 @@ export const ANALYSIS_DEBOUNCE_MS = 400
 export const CONTENT_OBSERVER_IDLE_MS = 1_500
 export const GET_PAGE_ANALYSIS_MESSAGE_TYPE = 'read-minutes/get-page-analysis'
 export const GET_PAGE_TRANSCRIPT_MESSAGE_TYPE = 'read-minutes/get-page-transcript'
-export const OPEN_TRANSCRIPT_VIEW_MESSAGE_TYPE = 'read-minutes/open-transcript-view'
 export const TRANSCRIPT_STORAGE_KEY_PREFIX = 'read-minutes/transcript/'

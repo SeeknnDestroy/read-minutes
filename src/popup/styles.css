@@ -155,7 +155,7 @@ body.raw-transcript-view pre {
 
 .metric-label,
 .control-help,
-.menu-description,
+.action-button-description,
 .empty-action-copy {
   margin: 0;
   color: rgba(244, 239, 228, 0.6);
@@ -178,12 +178,17 @@ body.raw-transcript-view pre {
 
 .transcript-dock {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.split-button {
+.dock-action-button {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  min-height: 74px;
+  padding: 14px 16px;
   border: 1px solid rgba(255, 244, 225, 0.12);
   border-radius: 18px;
   background:
@@ -191,28 +196,17 @@ body.raw-transcript-view pre {
   box-shadow:
     0 18px 36px rgba(0, 0, 0, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  overflow: hidden;
+  text-align: left;
 }
 
-.dock-primary-button,
-.dock-toggle-button,
-.menu-button,
+.dock-action-button,
 .number-input {
   font: inherit;
 }
 
-.dock-primary-button,
-.dock-toggle-button,
-.menu-button {
+.dock-action-button {
   appearance: none;
-  border: none;
-  background: transparent;
   color: inherit;
-}
-
-.dock-primary-button,
-.dock-toggle-button {
-  min-height: 58px;
   cursor: pointer;
   transition:
     background-color 160ms ease,
@@ -220,80 +214,40 @@ body.raw-transcript-view pre {
     transform 160ms ease;
 }
 
-.dock-primary-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: center;
-  padding: 0 18px;
+.dock-action-button-secondary {
+  background:
+    linear-gradient(180deg, rgba(24, 28, 34, 0.9) 0%, rgba(14, 17, 22, 0.96) 100%);
+}
+
+.action-button-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.action-button-label {
   color: #fff7ec;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
 }
 
-.dock-toggle-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-left: 1px solid rgba(255, 244, 225, 0.1);
-  color: rgba(244, 239, 228, 0.82);
-}
-
-.dock-primary-button:hover,
-.dock-toggle-button:hover,
-.menu-button:hover {
+.dock-action-button:hover {
   background: rgba(255, 244, 225, 0.06);
 }
 
-.dock-primary-button:focus-visible,
-.dock-toggle-button:focus-visible,
-.menu-button:focus-visible,
+.dock-action-button:focus-visible,
 .number-input:focus-visible,
 input[type="checkbox"]:focus-visible {
   outline: 2px solid rgba(216, 161, 75, 0.9);
   outline-offset: -2px;
 }
 
-.dock-primary-button:disabled,
-.dock-toggle-button:disabled,
-.menu-button:disabled {
+.dock-action-button:disabled {
   cursor: wait;
   opacity: 0.68;
 }
 
-.transcript-menu {
-  display: grid;
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid rgba(255, 244, 225, 0.1);
-  border-radius: 18px;
-  background: rgba(17, 20, 25, 0.96);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
-}
-
-.menu-button {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  padding: 12px;
-  border-radius: 14px;
-  cursor: pointer;
-  text-align: left;
-}
-
-.menu-copy {
-  display: grid;
-  gap: 3px;
-}
-
-.menu-label {
-  font-size: 15px;
-  font-weight: 700;
-  color: #fff7ec;
-}
-
 .action-status {
+  grid-column: 1 / -1;
   margin: 0;
   color: #f0be73;
   font-size: 12px;
@@ -339,8 +293,7 @@ input[type="checkbox"] {
   accent-color: #d6a356;
 }
 
-.action-icon,
-.chevron-icon {
+.action-icon {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
@@ -352,20 +305,4 @@ input[type="checkbox"] {
   stroke-linejoin: round;
   stroke-width: 1.8;
   fill: none;
-}
-
-.chevron-icon {
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.8;
-  fill: none;
-}
-
-.toggle-icon {
-  transition: transform 160ms ease;
-}
-
-.toggle-icon-open {
-  transform: rotate(180deg);
 }

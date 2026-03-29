@@ -17,20 +17,24 @@ describe('transcript view helpers', () => {
     expect(parsedUrl.searchParams.get('transcriptKey')).toBe('read-minutes/transcript/example')
   })
 
-  it('sends an open-transcript runtime message', async () => {
-    const sendMessage = vi.fn(async () => undefined)
+  it('opens the transcript page in a new window', async () => {
+    const openWindow = vi.fn()
 
     vi.stubGlobal('chrome', {
       runtime: {
-        sendMessage,
+        getURL: (path: string) => `chrome-extension://test-extension/${path}`,
       },
     })
 
-    await openTranscriptView('read-minutes/transcript/example')
+    await openTranscriptView(
+      'read-minutes/transcript/example',
+      openWindow as typeof window.open,
+    )
 
-    expect(sendMessage).toHaveBeenCalledWith({
-      type: 'read-minutes/open-transcript-view',
-      transcriptStorageKey: 'read-minutes/transcript/example',
-    })
+    expect(openWindow).toHaveBeenCalledWith(
+      'chrome-extension://test-extension/src/popup/index.html?view=transcript&transcriptKey=read-minutes%2Ftranscript%2Fexample',
+      '_blank',
+      'noopener,noreferrer',
+    )
   })
 })

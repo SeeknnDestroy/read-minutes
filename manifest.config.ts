@@ -24,9 +24,6 @@ export default defineManifest({
       128: 'public/icon-128.png',
     },
   },
-  background: {
-    service_worker: 'src/background/main.ts',
-  },
   content_scripts: [
     {
       matches: ['http://*/*', 'https://*/*'],

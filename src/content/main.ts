@@ -40,7 +40,6 @@ let inlineDockState: InlineDockState = createDefaultInlineDockState()
 
 interface InlineDockState {
   busyAction: 'copy' | 'open' | null
-  isMenuOpen: boolean
   message: string | null
 }
 
@@ -104,33 +103,16 @@ function renderInlineDock(analysis: ArticleAnalysis): void {
     {
       copyButtonLabel: isCopyActionBusy ? 'Copying...' : 'Copy page',
       isActionBusy: inlineDockState.busyAction !== null,
-      isMenuOpen: inlineDockState.isMenuOpen,
       message: inlineDockState.message,
       openButtonLabel: isOpenActionBusy ? 'Opening...' : 'View as Markdown',
       readingTimeLabel: analysis.readingTimeLabel,
     },
     {
-      onCloseMenu: handleInlineMenuClosed,
       onCopy: handleInlineCopyRequested,
       onDismiss: handleBadgeDismissed,
       onOpen: handleInlineOpenRequested,
-      onToggleMenu: handleInlineMenuToggled,
     },
   )
-}
-
-function handleInlineMenuClosed(): void {
-  updateInlineDockState({
-    isMenuOpen: false,
-  })
-}
-
-function handleInlineMenuToggled(): void {
-  const nextMenuOpen = !inlineDockState.isMenuOpen
-
-  updateInlineDockState({
-    isMenuOpen: nextMenuOpen,
-  })
 }
 
 function handleInlineCopyRequested(): void {
@@ -179,7 +161,6 @@ async function handleInlineCopy(): Promise<void> {
     if (transcriptResult.status !== 'ready') {
       updateInlineDockState({
         busyAction: null,
-        isMenuOpen: false,
         message: 'Markdown transcript is unavailable for this page.',
       })
 
@@ -189,13 +170,11 @@ async function handleInlineCopy(): Promise<void> {
     await navigator.clipboard.writeText(transcriptResult.payload.exportText)
     updateInlineDockState({
       busyAction: null,
-      isMenuOpen: false,
       message: 'Markdown copied for LLM.',
     })
   } catch {
     updateInlineDockState({
       busyAction: null,
-      isMenuOpen: false,
       message: 'Copying markdown failed.',
     })
   }
@@ -213,7 +192,6 @@ async function handleInlineOpen(): Promise<void> {
     if (transcriptResult.status !== 'ready') {
       updateInlineDockState({
         busyAction: null,
-        isMenuOpen: false,
         message: 'Markdown transcript is unavailable for this page.',
       })
 
@@ -226,13 +204,11 @@ async function handleInlineOpen(): Promise<void> {
     await openTranscriptView(transcriptStorageKey)
     updateInlineDockState({
       busyAction: null,
-      isMenuOpen: false,
       message: 'Opened markdown in a new tab.',
     })
   } catch {
     updateInlineDockState({
       busyAction: null,
-      isMenuOpen: false,
       message: 'Opening markdown failed.',
     })
   }
@@ -399,7 +375,6 @@ function resetInlineDockState(): void {
 function createDefaultInlineDockState(): InlineDockState {
   return {
     busyAction: null,
-    isMenuOpen: false,
     message: null,
   }
 }

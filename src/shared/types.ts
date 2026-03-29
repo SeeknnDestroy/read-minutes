@@ -34,11 +34,6 @@ export interface GetPageTranscriptMessage {
   type: typeof import('./constants').GET_PAGE_TRANSCRIPT_MESSAGE_TYPE
 }
 
-export interface OpenTranscriptViewMessage {
-  transcriptStorageKey: string
-  type: typeof import('./constants').OPEN_TRANSCRIPT_VIEW_MESSAGE_TYPE
-}
-
 export interface TranscriptPayload extends AnalysisMetadata {
   author: string
   description: string

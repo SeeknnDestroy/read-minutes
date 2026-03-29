@@ -3,7 +3,6 @@ import type { ExtensionSettings, PageAnalysis, TranscriptPayload } from '@/share
 
 export interface PopupTranscriptActionState {
   busyAction: 'copy' | 'open' | null
-  isMenuOpen: boolean
   message: string | null
 }
 
@@ -12,7 +11,6 @@ export interface PopupViewModel {
   emptyMessage: string | null
   hostname: string
   isTranscriptActionBusy: boolean
-  isTranscriptMenuOpen: boolean
   openButtonLabel: string
   pageTitle: string
   readingTimeValue: string | null
@@ -29,7 +27,6 @@ export interface TranscriptViewModel {
 
 const defaultTranscriptActionState: PopupTranscriptActionState = {
   busyAction: null,
-  isMenuOpen: false,
   message: null,
 }
 
@@ -44,7 +41,6 @@ export function createPopupViewModel(
       emptyMessage: 'No article-like content found on this page.',
       hostname: '',
       isTranscriptActionBusy: false,
-      isTranscriptMenuOpen: false,
       openButtonLabel: 'View as Markdown',
       pageTitle: 'Current page',
       readingTimeValue: null,
@@ -61,7 +57,6 @@ export function createPopupViewModel(
       emptyMessage: 'No article-like content found on this page.',
       hostname: analysis.hostname,
       isTranscriptActionBusy: false,
-      isTranscriptMenuOpen: false,
       openButtonLabel: 'View as Markdown',
       pageTitle: analysis.pageTitle,
       readingTimeValue: null,
@@ -81,7 +76,6 @@ export function createPopupViewModel(
     emptyMessage: null,
     hostname: analysis.siteName,
     isTranscriptActionBusy: transcriptActionState.busyAction !== null,
-    isTranscriptMenuOpen: transcriptActionState.isMenuOpen,
     openButtonLabel: isOpenActionBusy ? 'Opening...' : 'View as Markdown',
     pageTitle: analysis.pageTitle,
     readingTimeValue: formatReadingTime(minutes),

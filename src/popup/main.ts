@@ -6,7 +6,7 @@ import {
   createTranscriptStorageKey,
   saveTranscriptPayload,
 } from '@/shared/transcript-storage'
-import { openTranscriptView } from '@/shared/transcript-view'
+import { createTranscriptPageUrl } from '@/shared/transcript-view'
 import {
   defaultSettings,
   type ExtensionSettings,
@@ -22,14 +22,12 @@ import {
 
 const popupRootElement = getPopupRootElement()
 const popupView = getPopupView()
-let cleanupPopupMenuListeners: (() => void) | null = null
 
 const popupState = {
   analysis: null as PageAnalysis | null,
   settings: defaultSettings as ExtensionSettings,
   transcriptActionState: {
     busyAction: null,
-    isMenuOpen: false,
     message: null,
   } as PopupTranscriptActionState,
 }
@@ -80,22 +78,12 @@ function renderPopup(): void {
 }
 
 function bindControlEvents(): void {
-  cleanupPopupMenuListeners?.()
-  cleanupPopupMenuListeners = null
-
   const copyMarkdownButton = popupRootElement.querySelector<HTMLButtonElement>('#copy-markdown')
-  const copyMarkdownMenuItem = popupRootElement.querySelector<HTMLButtonElement>('#copy-markdown-menu-item')
   const inlineBadgeInput = popupRootElement.querySelector<HTMLInputElement>('#show-inline-badge')
   const openMarkdownButton = popupRootElement.querySelector<HTMLButtonElement>('#open-markdown')
-  const transcriptDockElement = popupRootElement.querySelector<HTMLElement>('.transcript-dock')
-  const transcriptMenuToggleButton = popupRootElement.querySelector<HTMLButtonElement>('#toggle-transcript-menu')
   const wordsPerMinuteInput = popupRootElement.querySelector<HTMLInputElement>('#words-per-minute')
 
   copyMarkdownButton?.addEventListener('click', () => {
-    void handleCopyMarkdown()
-  })
-
-  copyMarkdownMenuItem?.addEventListener('click', () => {
     void handleCopyMarkdown()
   })
 
@@ -122,18 +110,6 @@ function bindControlEvents(): void {
   openMarkdownButton?.addEventListener('click', () => {
     void handleOpenMarkdown()
   })
-
-  transcriptMenuToggleButton?.addEventListener('click', () => {
-    const nextMenuOpen = !popupState.transcriptActionState.isMenuOpen
-
-    updateTranscriptActionState({
-      isMenuOpen: nextMenuOpen,
-    })
-  })
-
-  if (popupState.transcriptActionState.isMenuOpen && transcriptDockElement) {
-    cleanupPopupMenuListeners = installPopupMenuDismissListeners(transcriptDockElement)
-  }
 }
 
 async function loadActiveTabAnalysis(): Promise<PageAnalysis | null> {
@@ -170,7 +146,6 @@ async function handleCopyMarkdown(): Promise<void> {
     if (transcriptResult.status !== 'ready') {
       updateTranscriptActionState({
         busyAction: null,
-        isMenuOpen: false,
         message: 'Markdown transcript is unavailable for this page.',
       })
 
@@ -180,13 +155,11 @@ async function handleCopyMarkdown(): Promise<void> {
     await navigator.clipboard.writeText(transcriptResult.payload.exportText)
     updateTranscriptActionState({
       busyAction: null,
-      isMenuOpen: false,
       message: 'Markdown copied for LLM.',
     })
   } catch {
     updateTranscriptActionState({
       busyAction: null,
-      isMenuOpen: false,
       message: 'Copying markdown failed.',
     })
   }
@@ -204,7 +177,6 @@ async function handleOpenMarkdown(): Promise<void> {
     if (transcriptResult.status !== 'ready') {
       updateTranscriptActionState({
         busyAction: null,
-        isMenuOpen: false,
         message: 'Markdown transcript is unavailable for this page.',
       })
 
@@ -213,16 +185,16 @@ async function handleOpenMarkdown(): Promise<void> {
 
     const transcriptStorageKey = createTranscriptStorageKey()
     await saveTranscriptPayload(transcriptStorageKey, transcriptResult.payload)
-    await openTranscriptView(transcriptStorageKey)
+    await chrome.tabs.create({
+      url: createTranscriptPageUrl(transcriptStorageKey),
+    })
     updateTranscriptActionState({
       busyAction: null,
-      isMenuOpen: false,
       message: 'Opened markdown in a new tab.',
     })
   } catch {
     updateTranscriptActionState({
       busyAction: null,
-      isMenuOpen: false,
       message: 'Opening markdown failed.',
     })
   }
@@ -283,41 +255,6 @@ function updateTranscriptActionState(nextState: Partial<PopupTranscriptActionSta
     ...nextState,
   }
   renderPopup()
-}
-
-function installPopupMenuDismissListeners(
-  transcriptDockElement: HTMLElement,
-): () => void {
-  const handleDocumentMouseDown = (event: MouseEvent) => {
-    const eventTarget = event.target
-    const clickStayedInsideDock = eventTarget instanceof Node
-      && transcriptDockElement.contains(eventTarget)
-
-    if (clickStayedInsideDock) {
-      return
-    }
-
-    updateTranscriptActionState({
-      isMenuOpen: false,
-    })
-  }
-  const handleDocumentKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape') {
-      return
-    }
-
-    updateTranscriptActionState({
-      isMenuOpen: false,
-    })
-  }
-
-  document.addEventListener('mousedown', handleDocumentMouseDown)
-  document.addEventListener('keydown', handleDocumentKeyDown)
-
-  return () => {
-    document.removeEventListener('mousedown', handleDocumentMouseDown)
-    document.removeEventListener('keydown', handleDocumentKeyDown)
-  }
 }
 
 async function loadActiveTab(): Promise<chrome.tabs.Tab | null> {

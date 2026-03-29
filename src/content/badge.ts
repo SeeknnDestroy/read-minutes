@@ -1,51 +1,36 @@
 import { BADGE_HOST_ID } from '@/shared/constants'
 
 export interface InlineDockHandlers {
-  onCloseMenu: () => void
   onCopy: () => void
   onDismiss: () => void
   onOpen: () => void
-  onToggleMenu: () => void
 }
 
 export interface InlineDockViewModel {
   copyButtonLabel: string
   isActionBusy: boolean
-  isMenuOpen: boolean
   message: string | null
   openButtonLabel: string
   readingTimeLabel: string
 }
 
-let cleanupDockListeners: (() => void) | null = null
-
 export function renderBadge(
   viewModel: InlineDockViewModel,
   handlers: InlineDockHandlers,
 ): void {
-  const { badgeHost, mountElement } = getBadgeElements()
+  const { mountElement } = getBadgeElements()
   const dockShellElement = createDockShell(viewModel, handlers)
 
-  cleanupDockListeners?.()
-  cleanupDockListeners = null
   mountElement.replaceChildren(dockShellElement)
-
-  if (viewModel.isMenuOpen) {
-    cleanupDockListeners = installDismissListeners(badgeHost, handlers.onCloseMenu)
-  }
 }
 
 export function removeBadge(): void {
-  cleanupDockListeners?.()
-  cleanupDockListeners = null
-
   const badgeHost = document.getElementById(BADGE_HOST_ID)
 
   badgeHost?.remove()
 }
 
 function getBadgeElements(): {
-  badgeHost: HTMLDivElement
   mountElement: HTMLDivElement
 } {
   const existingHost = document.getElementById(BADGE_HOST_ID)
@@ -55,7 +40,6 @@ function getBadgeElements(): {
 
     if (existingMount) {
       return {
-        badgeHost: existingHost,
         mountElement: existingMount,
       }
     }
@@ -133,63 +117,58 @@ function getBadgeElements(): {
     }
 
     .dock-controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
-    .split-button {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 52px;
-      border: 1px solid rgba(255, 241, 222, 0.12);
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.04);
-      overflow: hidden;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+      align-items: stretch;
+      gap: 10px;
+      flex: 1 1 320px;
     }
 
     button {
       appearance: none;
       border: none;
-      background: transparent;
       color: inherit;
       font: inherit;
     }
 
-    .dock-copy,
-    .dock-menu-toggle,
-    .dock-close,
-    .menu-button {
+    .dock-action {
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr);
+      align-items: start;
+      gap: 12px;
+      min-height: 60px;
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 241, 222, 0.12);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
       cursor: pointer;
+      text-align: left;
       transition:
         background-color 160ms ease,
-        transform 160ms ease,
         opacity 160ms ease;
     }
 
-    .dock-copy,
-    .dock-menu-toggle {
-      min-height: 48px;
+    .dock-action-secondary {
+      background: rgba(255, 255, 255, 0.03);
     }
 
-    .dock-copy {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 9px;
-      padding: 0 16px;
-      font-size: 15px;
+    .dock-action-copy {
+      display: grid;
+      gap: 3px;
+    }
+
+    .dock-action-label {
+      color: #fff7ec;
+      font-size: 14px;
       font-weight: 700;
-      white-space: nowrap;
     }
 
-    .dock-menu-toggle {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-left: 1px solid rgba(255, 241, 222, 0.1);
-      color: rgba(255, 247, 236, 0.8);
+    .dock-action-description,
+    .dock-status {
+      margin: 0;
+      color: rgba(255, 247, 236, 0.62);
+      font-size: 12px;
+      line-height: 1.45;
     }
 
     .dock-close {
@@ -200,101 +179,41 @@ function getBadgeElements(): {
       height: 42px;
       border-radius: 12px;
       background: rgba(255, 255, 255, 0.05);
-      color: rgba(255, 247, 236, 0.7);
+      cursor: pointer;
       font-size: 18px;
       line-height: 1;
+      transition: background-color 160ms ease;
     }
 
-    .dock-copy:hover,
-    .dock-menu-toggle:hover,
-    .dock-close:hover,
-    .menu-button:hover {
+    .dock-action:hover,
+    .dock-close:hover {
       background: rgba(255, 241, 222, 0.08);
     }
 
-    .dock-copy:focus-visible,
-    .dock-menu-toggle:focus-visible,
-    .dock-close:focus-visible,
-    .menu-button:focus-visible {
+    .dock-action:focus-visible,
+    .dock-close:focus-visible {
       outline: 2px solid rgba(216, 161, 75, 0.92);
       outline-offset: -2px;
     }
 
-    .dock-copy:disabled,
-    .dock-menu-toggle:disabled,
-    .menu-button:disabled {
+    .dock-action:disabled {
       cursor: wait;
       opacity: 0.68;
-    }
-
-    .dock-menu {
-      display: grid;
-      gap: 6px;
-      padding: 8px;
-      border: 1px solid rgba(255, 241, 222, 0.1);
-      border-radius: 18px;
-      background: rgba(16, 19, 24, 0.96);
-    }
-
-    .menu-button {
-      display: grid;
-      grid-template-columns: 18px minmax(0, 1fr);
-      gap: 12px;
-      align-items: start;
-      padding: 12px;
-      border-radius: 14px;
-      text-align: left;
-    }
-
-    .menu-copy {
-      display: grid;
-      gap: 3px;
-    }
-
-    .menu-label {
-      font-size: 14px;
-      font-weight: 700;
-      color: #fff7ec;
-    }
-
-    .menu-description,
-    .dock-status {
-      margin: 0;
-      color: rgba(255, 247, 236, 0.62);
-      font-size: 12px;
-      line-height: 1.45;
     }
 
     .dock-status {
       color: #f0be73;
     }
 
-    .action-icon,
-    .chevron-icon {
+    .action-icon {
       width: 18px;
       height: 18px;
       flex: 0 0 auto;
-    }
-
-    .action-icon {
       stroke: currentColor;
       stroke-linecap: round;
       stroke-linejoin: round;
       stroke-width: 1.8;
       fill: none;
-    }
-
-    .chevron-icon {
-      stroke: currentColor;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      stroke-width: 1.8;
-      fill: none;
-      transition: transform 160ms ease;
-    }
-
-    .chevron-icon-open {
-      transform: rotate(180deg);
     }
 
     @media (max-width: 720px) {
@@ -302,17 +221,12 @@ function getBadgeElements(): {
         width: min(420px, calc(100vw - 24px));
       }
 
-      .dock-bar {
-        align-items: stretch;
-      }
-
       .dock-controls {
-        width: 100%;
-        justify-content: stretch;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .split-button {
-        flex: 1 1 260px;
+      .dock-close {
+        justify-self: end;
       }
     }
   `
@@ -320,7 +234,6 @@ function getBadgeElements(): {
   document.documentElement.append(badgeHost)
 
   return {
-    badgeHost,
     mountElement,
   }
 }
@@ -335,9 +248,8 @@ function createDockShell(
   const labelElement = document.createElement('p')
   const readingTimeElement = document.createElement('p')
   const controlsElement = document.createElement('div')
-  const splitButtonElement = document.createElement('div')
   const copyButtonElement = document.createElement('button')
-  const toggleButtonElement = document.createElement('button')
+  const openButtonElement = document.createElement('button')
   const closeButtonElement = document.createElement('button')
 
   dockShellElement.className = 'dock-shell'
@@ -349,35 +261,33 @@ function createDockShell(
   readingTimeElement.textContent = viewModel.readingTimeLabel
   contextElement.append(labelElement, readingTimeElement)
   controlsElement.className = 'dock-controls'
-  splitButtonElement.className = 'split-button'
-  copyButtonElement.className = 'dock-copy'
+  copyButtonElement.className = 'dock-action'
   copyButtonElement.dataset.role = 'badge-copy'
   copyButtonElement.type = 'button'
   copyButtonElement.disabled = viewModel.isActionBusy
-  copyButtonElement.append(createIconElement('copy'), createButtonLabel(viewModel.copyButtonLabel))
+  copyButtonElement.append(
+    createIconElement('copy'),
+    createActionButtonCopy(viewModel.copyButtonLabel, 'Copy page as Markdown for LLMs'),
+  )
   copyButtonElement.addEventListener('click', handlers.onCopy)
-  toggleButtonElement.className = 'dock-menu-toggle'
-  toggleButtonElement.dataset.role = 'badge-menu-toggle'
-  toggleButtonElement.type = 'button'
-  toggleButtonElement.disabled = viewModel.isActionBusy
-  toggleButtonElement.setAttribute('aria-expanded', String(viewModel.isMenuOpen))
-  toggleButtonElement.setAttribute('aria-label', 'Show more page tools')
-  toggleButtonElement.append(createChevronIcon(viewModel.isMenuOpen))
-  toggleButtonElement.addEventListener('click', handlers.onToggleMenu)
+  openButtonElement.className = 'dock-action dock-action-secondary'
+  openButtonElement.dataset.role = 'badge-open'
+  openButtonElement.type = 'button'
+  openButtonElement.disabled = viewModel.isActionBusy
+  openButtonElement.append(
+    createIconElement('markdown'),
+    createActionButtonCopy(viewModel.openButtonLabel, 'Open this page as plain text'),
+  )
+  openButtonElement.addEventListener('click', handlers.onOpen)
   closeButtonElement.className = 'dock-close'
   closeButtonElement.dataset.role = 'badge-close'
   closeButtonElement.type = 'button'
   closeButtonElement.setAttribute('aria-label', 'Close page tools')
   closeButtonElement.textContent = '×'
   closeButtonElement.addEventListener('click', handlers.onDismiss)
-  splitButtonElement.append(copyButtonElement, toggleButtonElement)
-  controlsElement.append(splitButtonElement, closeButtonElement)
+  controlsElement.append(copyButtonElement, openButtonElement, closeButtonElement)
   dockBarElement.append(contextElement, controlsElement)
   dockShellElement.append(dockBarElement)
-
-  if (viewModel.isMenuOpen) {
-    dockShellElement.append(createDockMenu(viewModel, handlers))
-  }
 
   if (viewModel.message) {
     const statusElement = document.createElement('p')
@@ -390,79 +300,22 @@ function createDockShell(
   return dockShellElement
 }
 
-function createDockMenu(
-  viewModel: InlineDockViewModel,
-  handlers: InlineDockHandlers,
+function createActionButtonCopy(
+  label: string,
+  description: string,
 ): HTMLElement {
-  const menuElement = document.createElement('div')
-
-  menuElement.className = 'dock-menu'
-  menuElement.dataset.role = 'badge-menu'
-  menuElement.append(
-    createMenuButton({
-      buttonRole: 'badge-copy-menu-item',
-      description: 'Copy page as Markdown for LLMs',
-      iconName: 'copy',
-      isBusy: viewModel.copyButtonLabel === 'Copying...',
-      label: viewModel.copyButtonLabel,
-      onClick: handlers.onCopy,
-    }),
-    createMenuButton({
-      buttonRole: 'badge-open',
-      description: 'Open this page as plain text',
-      iconName: 'markdown',
-      isBusy: viewModel.openButtonLabel === 'Opening...',
-      label: viewModel.openButtonLabel,
-      onClick: handlers.onOpen,
-    }),
-  )
-
-  return menuElement
-}
-
-function createMenuButton({
-  buttonRole,
-  description,
-  iconName,
-  isBusy,
-  label,
-  onClick,
-}: {
-  buttonRole: string
-  description: string
-  iconName: 'copy' | 'markdown'
-  isBusy: boolean
-  label: string
-  onClick: () => void
-}): HTMLElement {
-  const buttonElement = document.createElement('button')
-  const iconElement = createIconElement(iconName)
   const copyElement = document.createElement('span')
   const labelElement = document.createElement('span')
   const descriptionElement = document.createElement('span')
 
-  buttonElement.className = 'menu-button'
-  buttonElement.dataset.role = buttonRole
-  buttonElement.type = 'button'
-  buttonElement.disabled = isBusy
-  buttonElement.addEventListener('click', onClick)
-  copyElement.className = 'menu-copy'
-  labelElement.className = 'menu-label'
+  copyElement.className = 'dock-action-copy'
+  labelElement.className = 'dock-action-label'
   labelElement.textContent = label
-  descriptionElement.className = 'menu-description'
+  descriptionElement.className = 'dock-action-description'
   descriptionElement.textContent = description
   copyElement.append(labelElement, descriptionElement)
-  buttonElement.append(iconElement, copyElement)
 
-  return buttonElement
-}
-
-function createButtonLabel(value: string): HTMLElement {
-  const labelElement = document.createElement('span')
-
-  labelElement.textContent = value
-
-  return labelElement
+  return copyElement
 }
 
 function createIconElement(iconName: 'copy' | 'markdown'): SVGElement {
@@ -505,53 +358,4 @@ function createIconElement(iconName: 'copy' | 'markdown'): SVGElement {
   iconElement.append(frameElement, leftPathElement, rightPathElement)
 
   return iconElement
-}
-
-function createChevronIcon(isOpen: boolean): SVGElement {
-  const iconElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  const chevronPathElement = document.createElementNS(iconElement.namespaceURI, 'path')
-
-  iconElement.setAttribute('viewBox', '0 0 24 24')
-  iconElement.setAttribute('aria-hidden', 'true')
-  iconElement.classList.add('chevron-icon')
-
-  if (isOpen) {
-    iconElement.classList.add('chevron-icon-open')
-  }
-
-  chevronPathElement.setAttribute('d', 'm6 9 6 6 6-6')
-  iconElement.append(chevronPathElement)
-
-  return iconElement
-}
-
-function installDismissListeners(
-  badgeHost: HTMLDivElement,
-  onCloseMenu: () => void,
-): () => void {
-  const handleDocumentMouseDown = (event: MouseEvent) => {
-    const eventPath = event.composedPath()
-    const clickStayedInsideDock = eventPath.includes(badgeHost)
-
-    if (clickStayedInsideDock) {
-      return
-    }
-
-    onCloseMenu()
-  }
-  const handleDocumentKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape') {
-      return
-    }
-
-    onCloseMenu()
-  }
-
-  document.addEventListener('mousedown', handleDocumentMouseDown)
-  document.addEventListener('keydown', handleDocumentKeyDown)
-
-  return () => {
-    document.removeEventListener('mousedown', handleDocumentMouseDown)
-    document.removeEventListener('keydown', handleDocumentKeyDown)
-  }
 }

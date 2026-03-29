@@ -1,5 +1,3 @@
-import { createOpenTranscriptViewMessage } from './messages'
-
 export function createTranscriptPageUrl(
   transcriptStorageKey: string,
   getRuntimeUrl: (path: string) => string = chrome.runtime.getURL,
@@ -12,6 +10,12 @@ export function createTranscriptPageUrl(
   return transcriptPageUrl.toString()
 }
 
-export async function openTranscriptView(transcriptStorageKey: string): Promise<void> {
-  await chrome.runtime.sendMessage(createOpenTranscriptViewMessage(transcriptStorageKey))
+export async function openTranscriptView(
+  transcriptStorageKey: string,
+  openWindow: typeof window.open = window.open.bind(window),
+  getRuntimeUrl: (path: string) => string = chrome.runtime.getURL,
+): Promise<void> {
+  const transcriptPageUrl = createTranscriptPageUrl(transcriptStorageKey, getRuntimeUrl)
+
+  openWindow(transcriptPageUrl, '_blank', 'noopener,noreferrer')
 }
