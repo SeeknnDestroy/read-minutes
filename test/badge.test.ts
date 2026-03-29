@@ -8,9 +8,24 @@ describe('renderBadge', () => {
 
   it('renders a close button that dismisses the badge', () => {
     const handleDismiss = vi.fn()
-    const renderDismissibleBadge = renderBadge as unknown as (label: string, onDismiss: () => void) => void
 
-    renderDismissibleBadge('8 min read', handleDismiss)
+    renderBadge(
+      {
+        copyButtonLabel: 'Copy page',
+        isActionBusy: false,
+        isMenuOpen: false,
+        message: null,
+        openButtonLabel: 'View as Markdown',
+        readingTimeLabel: '8 min read',
+      },
+      {
+        onCloseMenu: vi.fn(),
+        onCopy: vi.fn(),
+        onDismiss: handleDismiss,
+        onOpen: vi.fn(),
+        onToggleMenu: vi.fn(),
+      },
+    )
 
     const badgeHost = document.getElementById(BADGE_HOST_ID)
     const closeButton = badgeHost?.shadowRoot?.querySelector<HTMLButtonElement>('[data-role="badge-close"]')

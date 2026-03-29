@@ -2,8 +2,17 @@ import { ANALYSIS_DEBOUNCE_MS, BADGE_HOST_ID, CONTENT_OBSERVER_IDLE_MS } from '@
 import { analyzeDocument } from '@/shared/analysis'
 import { isGetPageAnalysisMessage, isGetPageTranscriptMessage } from '@/shared/messages'
 import { mergeSettingsFromStorageChange, readSettings } from '@/shared/settings'
+import {
+  createTranscriptStorageKey,
+  saveTranscriptPayload,
+} from '@/shared/transcript-storage'
 import { createTranscriptResult } from '@/shared/transcript'
-import { defaultSettings, type PageAnalysis } from '@/shared/types'
+import { openTranscriptView } from '@/shared/transcript-view'
+import {
+  defaultSettings,
+  type ArticleAnalysis,
+  type PageAnalysis,
+} from '@/shared/types'
 import {
   dismissBadgeForAnalysis,
   shouldRenderBadge,
@@ -27,6 +36,13 @@ let contentObserverIdleTimer: number | undefined
 let currentLocationUrl = document.location.href
 let dismissedSourceUrl: string | null = null
 let contentMutationObserver: MutationObserver | null = null
+let inlineDockState: InlineDockState = createDefaultInlineDockState()
+
+interface InlineDockState {
+  busyAction: 'copy' | 'open' | null
+  isMenuOpen: boolean
+  message: string | null
+}
 
 void initializeContentScript()
 
@@ -40,18 +56,27 @@ async function initializeContentScript(): Promise<void> {
 }
 
 function runAnalysis(): void {
+  const previousSourceUrl = currentAnalysis?.sourceUrl ?? null
+
   currentAnalysis = analyzeDocument(document, currentSettings)
+  const nextSourceUrl = currentAnalysis?.sourceUrl ?? null
+  const sourceUrlChanged = previousSourceUrl !== nextSourceUrl
+
+  if (sourceUrlChanged) {
+    resetInlineDockState()
+  }
 
   if (shouldRenderBadge(
     currentAnalysis,
     currentSettings.showInlineBadge,
     dismissedSourceUrl,
   )) {
-    renderBadge(currentAnalysis.readingTimeLabel, handleBadgeDismissed)
+    renderInlineDock(currentAnalysis)
 
     return
   }
 
+  resetInlineDockState()
   removeBadge()
 }
 
@@ -67,6 +92,53 @@ function handleBadgeDismissed(): void {
   }
 
   dismissedSourceUrl = dismissBadgeForAnalysis(currentAnalysis)
+  resetInlineDockState()
+  removeBadge()
+}
+
+function renderInlineDock(analysis: ArticleAnalysis): void {
+  const isCopyActionBusy = inlineDockState.busyAction === 'copy'
+  const isOpenActionBusy = inlineDockState.busyAction === 'open'
+
+  renderBadge(
+    {
+      copyButtonLabel: isCopyActionBusy ? 'Copying...' : 'Copy page',
+      isActionBusy: inlineDockState.busyAction !== null,
+      isMenuOpen: inlineDockState.isMenuOpen,
+      message: inlineDockState.message,
+      openButtonLabel: isOpenActionBusy ? 'Opening...' : 'View as Markdown',
+      readingTimeLabel: analysis.readingTimeLabel,
+    },
+    {
+      onCloseMenu: handleInlineMenuClosed,
+      onCopy: handleInlineCopyRequested,
+      onDismiss: handleBadgeDismissed,
+      onOpen: handleInlineOpenRequested,
+      onToggleMenu: handleInlineMenuToggled,
+    },
+  )
+}
+
+function handleInlineMenuClosed(): void {
+  updateInlineDockState({
+    isMenuOpen: false,
+  })
+}
+
+function handleInlineMenuToggled(): void {
+  const nextMenuOpen = !inlineDockState.isMenuOpen
+
+  updateInlineDockState({
+    isMenuOpen: nextMenuOpen,
+  })
+}
+
+function handleInlineCopyRequested(): void {
+  void handleInlineCopy()
+}
+
+function handleInlineOpenRequested(): void {
+  void handleInlineOpen()
 }
 
 function installMessageListener(): void {
@@ -93,6 +165,77 @@ async function respondWithTranscript(
   const transcriptResult = await createTranscriptResult(document)
 
   sendResponse(transcriptResult)
+}
+
+async function handleInlineCopy(): Promise<void> {
+  updateInlineDockState({
+    busyAction: 'copy',
+    message: null,
+  })
+
+  try {
+    const transcriptResult = await createTranscriptResult(document)
+
+    if (transcriptResult.status !== 'ready') {
+      updateInlineDockState({
+        busyAction: null,
+        isMenuOpen: false,
+        message: 'Markdown transcript is unavailable for this page.',
+      })
+
+      return
+    }
+
+    await navigator.clipboard.writeText(transcriptResult.payload.exportText)
+    updateInlineDockState({
+      busyAction: null,
+      isMenuOpen: false,
+      message: 'Markdown copied for LLM.',
+    })
+  } catch {
+    updateInlineDockState({
+      busyAction: null,
+      isMenuOpen: false,
+      message: 'Copying markdown failed.',
+    })
+  }
+}
+
+async function handleInlineOpen(): Promise<void> {
+  updateInlineDockState({
+    busyAction: 'open',
+    message: null,
+  })
+
+  try {
+    const transcriptResult = await createTranscriptResult(document)
+
+    if (transcriptResult.status !== 'ready') {
+      updateInlineDockState({
+        busyAction: null,
+        isMenuOpen: false,
+        message: 'Markdown transcript is unavailable for this page.',
+      })
+
+      return
+    }
+
+    const transcriptStorageKey = createTranscriptStorageKey()
+
+    await saveTranscriptPayload(transcriptStorageKey, transcriptResult.payload)
+    await openTranscriptView(transcriptStorageKey)
+    updateInlineDockState({
+      busyAction: null,
+      isMenuOpen: false,
+      message: 'Opened markdown in a new tab.',
+    })
+  } catch {
+    updateInlineDockState({
+      busyAction: null,
+      isMenuOpen: false,
+      message: 'Opening markdown failed.',
+    })
+  }
 }
 
 function installStorageListener(): void {
@@ -228,4 +371,35 @@ function patchHistoryMethod(
 
 export function getCurrentAnalysis(): PageAnalysis | null {
   return currentAnalysis
+}
+
+function updateInlineDockState(nextState: Partial<InlineDockState>): void {
+  inlineDockState = {
+    ...inlineDockState,
+    ...nextState,
+  }
+
+  if (currentAnalysis && shouldRenderBadge(
+    currentAnalysis,
+    currentSettings.showInlineBadge,
+    dismissedSourceUrl,
+  )) {
+    renderInlineDock(currentAnalysis)
+
+    return
+  }
+
+  removeBadge()
+}
+
+function resetInlineDockState(): void {
+  inlineDockState = createDefaultInlineDockState()
+}
+
+function createDefaultInlineDockState(): InlineDockState {
+  return {
+    busyAction: null,
+    isMenuOpen: false,
+    message: null,
+  }
 }
