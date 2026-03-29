@@ -106,8 +106,9 @@ function getWordCount(result: DefuddleResponse): number {
 
 function normalizeMarkdown(markdown: string): string {
   const normalizedLineEndings = markdown.replace(/\r\n/gu, '\n')
+  const normalizedCodeBlocks = removeLeadingCodeFenceLineNumbers(normalizedLineEndings)
 
-  return normalizedLineEndings.trim()
+  return normalizedCodeBlocks.trim()
 }
 
 function pickPreferredText(candidateValue: string, fallbackValue: string): string {
@@ -140,4 +141,54 @@ function formatMetadataValue(value: number | string): string {
   }
 
   return JSON.stringify(value)
+}
+
+function removeLeadingCodeFenceLineNumbers(markdown: string): string {
+  return markdown.replace(
+    /```([^\n`]*)\n([\s\S]*?)\n```/gu,
+    (_match, language, content) => {
+      const cleanedContent = stripLeadingSequentialNumbers(content)
+
+      return `\`\`\`${language}\n${cleanedContent}\n\`\`\``
+    },
+  )
+}
+
+function stripLeadingSequentialNumbers(content: string): string {
+  const codeLines = content.split('\n')
+  const leadingNumberCount = countLeadingSequentialNumbers(codeLines)
+  const hasDetectedGutter = leadingNumberCount >= 3
+
+  if (!hasDetectedGutter) {
+    return content
+  }
+
+  const cleanedLines = codeLines.slice(leadingNumberCount)
+
+  return cleanedLines.join('\n').replace(/^\n+/u, '')
+}
+
+function countLeadingSequentialNumbers(lines: string[]): number {
+  let expectedValue = 1
+  let matchedLineCount = 0
+
+  for (const line of lines) {
+    const normalizedLine = line.trim()
+    const hasNumberOnly = /^\d+$/u.test(normalizedLine)
+
+    if (!hasNumberOnly) {
+      break
+    }
+
+    const numericValue = Number.parseInt(normalizedLine, 10)
+
+    if (numericValue !== expectedValue) {
+      break
+    }
+
+    matchedLineCount += 1
+    expectedValue += 1
+  }
+
+  return matchedLineCount
 }

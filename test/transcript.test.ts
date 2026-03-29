@@ -74,6 +74,42 @@ describe('createTranscriptResult', () => {
     expect(result.payload.exportText).toContain('```python')
     expect(result.payload.exportText).toContain('from fastapi import FastAPI')
   })
+
+  it('strips leading sequential line numbers from fenced code blocks', async () => {
+    const html = `
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <title>Code Example</title>
+        </head>
+        <body>
+          <main>
+            <article>
+              <h1>Code Example</h1>
+              <p>${'word '.repeat(220)}</p>
+              <pre><code class="language-python">1
+2
+3
+4
+from fastapi import FastAPI
+app = FastAPI()</code></pre>
+            </article>
+          </main>
+        </body>
+      </html>
+    `
+    const dom = new JSDOM(html, { url: 'https://example.com/code-example' })
+    const result = await createTranscriptResult(dom.window.document)
+
+    expect(result.status).toBe('ready')
+
+    if (result.status !== 'ready') {
+      throw new Error('Expected transcript extraction to succeed for the numbered code fixture.')
+    }
+
+    expect(result.payload.exportText).toContain('```python\nfrom fastapi import FastAPI')
+    expect(result.payload.exportText).not.toContain('```python\n1\n2\n3\n4')
+  })
 })
 
 function loadFixtureDocument(fileName: string, sourceUrl: string): Document {

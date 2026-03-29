@@ -105,34 +105,15 @@ describe('content script lifecycle', () => {
 
   it('responds to transcript messages with local transcript results', async () => {
     const analyzeDocument = vi.fn(() => createNoArticleAnalysis())
-    const createTranscriptResult = vi.fn(async () => ({
-      status: 'ready',
-      payload: {
-        author: '',
-        description: '',
-        domain: 'example.com',
-        exportText: 'title: "Example"\n\nBody copy',
-        favicon: '',
-        hostname: 'example.com',
-        image: '',
-        language: 'en',
-        markdown: 'Body copy',
-        pageTitle: 'Example',
-        published: '',
-        siteName: 'Example',
-        sourceUrl: 'https://example.com/post',
-        title: 'Example',
-        wordCount: 220,
-      },
-    }))
     const chromeMock = createContentChromeMock()
+    const longArticleCopy = 'word '.repeat(220)
+
+    document.title = 'Transcript Example'
+    document.body.innerHTML = `<main><article><h1>Transcript Example</h1><p>${longArticleCopy}</p></article></main>`
 
     vi.stubGlobal('chrome', chromeMock)
     vi.doMock('@/shared/analysis', () => ({
       analyzeDocument,
-    }))
-    vi.doMock('@/shared/transcript', () => ({
-      createTranscriptResult,
     }))
     vi.doMock('@/shared/settings', async () => {
       const actualSettingsModule = await vi.importActual<typeof import('@/shared/settings')>('@/shared/settings')
@@ -157,25 +138,12 @@ describe('content script lifecycle', () => {
 
     expect(listenerResult).toBe(true)
     await flushMicrotasks()
-    expect(createTranscriptResult).toHaveBeenCalledTimes(1)
-    expect(sendResponse).toHaveBeenCalledWith({
+    expect(sendResponse).toHaveBeenCalledTimes(1)
+    expect(sendResponse.mock.calls[0]?.[0]).toMatchObject({
       status: 'ready',
       payload: {
-        author: '',
-        description: '',
-        domain: 'example.com',
-        exportText: 'title: "Example"\n\nBody copy',
-        favicon: '',
-        hostname: 'example.com',
-        image: '',
-        language: 'en',
-        markdown: 'Body copy',
-        pageTitle: 'Example',
-        published: '',
-        siteName: 'Example',
-        sourceUrl: 'https://example.com/post',
-        title: 'Example',
-        wordCount: 220,
+        pageTitle: 'Transcript Example',
+        sourceUrl: 'http://localhost:3000/',
       },
     })
   })
@@ -241,4 +209,5 @@ async function flushMicrotasks(): Promise<void> {
   await Promise.resolve()
   await Promise.resolve()
   await Promise.resolve()
+  await vi.dynamicImportSettled()
 }

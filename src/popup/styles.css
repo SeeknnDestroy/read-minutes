@@ -16,7 +16,7 @@ body {
 
 body.transcript-body {
   min-width: 0;
-  background: #111;
+  background: #111111;
 }
 
 .popup-shell,
@@ -34,7 +34,7 @@ body.transcript-body .transcript-shell {
   min-height: 100vh;
   gap: 0;
   padding: 0;
-  background: #111;
+  background: #111111;
 }
 
 .hero-card,
@@ -227,12 +227,13 @@ input[type="checkbox"] {
 .plain-text-page {
   margin: 0;
   min-height: 100vh;
-  padding: 12px;
-  color: #f5f5f5;
-  font-family: "SFMono-Regular", "SF Mono", "Menlo", monospace;
-  font-size: 13px;
-  line-height: 1.55;
+  padding: 8px 10px;
+  color: #f2f2f2;
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: #111;
+  background: #111111;
+  tab-size: 2;
 }
