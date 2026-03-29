@@ -30,7 +30,7 @@ export function renderTranscriptViewContent(
   rootElement: HTMLDivElement,
   viewModel: TranscriptViewModel,
 ): void {
-  rootElement.replaceChildren(createTranscriptShell(viewModel))
+  rootElement.replaceChildren(createTranscriptContent(viewModel))
 }
 
 function createHeroCard(viewModel: PopupViewModel): HTMLElement {
@@ -185,24 +185,16 @@ function createInlineBadgeControl(showInlineBadge: boolean): HTMLElement {
   return labelElement
 }
 
-function createTranscriptShell(viewModel: TranscriptViewModel): HTMLElement {
-  const transcriptShellElement = document.createElement('main')
-
-  transcriptShellElement.className = 'transcript-shell'
-
+function createTranscriptContent(viewModel: TranscriptViewModel): HTMLElement {
   if (!viewModel.exportText) {
-    transcriptShellElement.append(createEmptyState(viewModel.emptyMessage))
-
-    return transcriptShellElement
+    return createEmptyState(viewModel.emptyMessage)
   }
 
   const transcriptMarkdownElement = document.createElement('pre')
 
-  transcriptMarkdownElement.className = 'plain-text-page'
   transcriptMarkdownElement.textContent = viewModel.exportText
-  transcriptShellElement.append(transcriptMarkdownElement)
 
-  return transcriptShellElement
+  return transcriptMarkdownElement
 }
 
 function createWordsPerMinuteField(wordsPerMinute: number): HTMLElement {

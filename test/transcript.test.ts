@@ -110,6 +110,55 @@ app = FastAPI()</code></pre>
     expect(result.payload.exportText).toContain('```python\nfrom fastapi import FastAPI')
     expect(result.payload.exportText).not.toContain('```python\n1\n2\n3\n4')
   })
+
+  it('strips OpenAI docs style code gutters from list-indented fenced code blocks', async () => {
+    const lineNumberMarkup = Array.from({ length: 14 }, (_value, index) => {
+      const lineNumber = index + 1
+
+      return `<span class="react-syntax-highlighter-line-number">${lineNumber}\n</span>`
+    }).join('')
+    const html = `
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <title>Code Example</title>
+        </head>
+        <body>
+          <main>
+            <article>
+              <h1>Code Example</h1>
+              <p>${'word '.repeat(220)}</p>
+              <ol>
+                <li>
+                  <p>Generate a client token.</p>
+                  <pre><code data-language="python"><code style="float:left;padding-right:10px">${lineNumberMarkup}</code><span>from fastapi import FastAPI
+</span><span>from pydantic import BaseModel
+</span><span>from openai import OpenAI
+</span><span>import os
+</span><span>
+</span><span>app = FastAPI()
+</span><span>openai = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+</span></code></pre>
+                </li>
+              </ol>
+            </article>
+          </main>
+        </body>
+      </html>
+    `
+    const dom = new JSDOM(html, { url: 'https://example.com/code-example' })
+    const result = await createTranscriptResult(dom.window.document)
+
+    expect(result.status).toBe('ready')
+
+    if (result.status !== 'ready') {
+      throw new Error('Expected transcript extraction to succeed for the docs-style code fixture.')
+    }
+
+    expect(result.payload.exportText).toContain('```python\n\tfrom fastapi import FastAPI')
+    expect(result.payload.exportText).not.toContain('```python\n\t1\n\t2\n\t3')
+    expect(result.payload.exportText).not.toContain('\n\t14\n\tfrom fastapi import FastAPI')
+  })
 })
 
 function loadFixtureDocument(fileName: string, sourceUrl: string): Document {

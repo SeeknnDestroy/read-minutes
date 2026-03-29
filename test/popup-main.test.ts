@@ -120,9 +120,12 @@ describe('transcript view mode', () => {
     await import('@/popup/main')
     await flushMicrotasks()
 
-    expect(document.body.classList.contains('transcript-body')).toBe(true)
-    expect(document.querySelector('.plain-text-page')?.textContent).toBe(transcriptPayload.exportText)
-    expect(document.querySelector('.transcript-header')).toBeNull()
+    const transcriptPreElement = document.querySelector('pre')
+
+    expect(document.body.classList.contains('transcript-body')).toBe(false)
+    expect(transcriptPreElement?.className).toBe('')
+    expect(transcriptPreElement?.textContent).toBe(transcriptPayload.exportText)
+    expect(document.querySelector('.plain-text-page')).toBeNull()
     expect(chromeMock.storage.session.snapshot()).toEqual({})
   })
 })

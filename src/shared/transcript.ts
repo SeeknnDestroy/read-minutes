@@ -145,11 +145,11 @@ function formatMetadataValue(value: number | string): string {
 
 function removeLeadingCodeFenceLineNumbers(markdown: string): string {
   return markdown.replace(
-    /```([^\n`]*)\n([\s\S]*?)\n```/gu,
-    (_match, language, content) => {
+    /(^|\n)([ \t]*)```([^\n`]*)\n([\s\S]*?)\n\2```(?=\n|$)/gu,
+    (_match, linePrefix, indentation, language, content) => {
       const cleanedContent = stripLeadingSequentialNumbers(content)
 
-      return `\`\`\`${language}\n${cleanedContent}\n\`\`\``
+      return `${linePrefix}${indentation}\`\`\`${language}\n${cleanedContent}\n${indentation}\`\`\``
     },
   )
 }

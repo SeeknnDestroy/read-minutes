@@ -14,13 +14,30 @@ body {
   min-width: 360px;
 }
 
-body.transcript-body {
+body.raw-transcript-view {
   min-width: 0;
-  background: #100f0f;
+  margin: 8px;
+  background: #fff;
+  color: #000;
+  font-family: Times, serif;
+  font-size: 16px;
+  line-height: normal;
 }
 
-.popup-shell,
-.transcript-shell {
+body.raw-transcript-view pre {
+  margin: 13px 0;
+  padding: 0;
+  background: transparent;
+  color: #000;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: normal;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.popup-shell {
   box-sizing: border-box;
   display: grid;
   gap: 14px;
@@ -28,13 +45,6 @@ body.transcript-body {
   background:
     radial-gradient(circle at top left, #f8d78b 0, #f5f1e8 45%),
     linear-gradient(135deg, #f5f1e8 0, #efe8dc 100%);
-}
-
-body.transcript-body .transcript-shell {
-  min-height: 100vh;
-  gap: 0;
-  padding: 0;
-  background: #100f0f;
 }
 
 .hero-card,
@@ -222,18 +232,4 @@ input[type="checkbox"] {
   color: #7d6042;
   font-size: 13px;
   overflow-wrap: anywhere;
-}
-
-.plain-text-page {
-  margin: 0;
-  min-height: 100vh;
-  padding: 1rem;
-  color: #b7b5ac;
-  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Monaco, Consolas, monospace;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  background: #100f0f;
-  tab-size: 2;
 }

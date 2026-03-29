@@ -226,7 +226,7 @@ async function initializeTranscriptView(): Promise<void> {
     : null
   const viewModel = createTranscriptViewModel(transcriptPayload)
 
-  document.body.classList.add('transcript-body')
+  document.body.classList.add('raw-transcript-view')
 
   if (transcriptPayload) {
     document.title = transcriptPayload.title
