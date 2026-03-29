@@ -1,7 +1,8 @@
 import { ANALYSIS_DEBOUNCE_MS, BADGE_HOST_ID, CONTENT_OBSERVER_IDLE_MS } from '@/shared/constants'
 import { analyzeDocument } from '@/shared/analysis'
-import { isGetPageAnalysisMessage } from '@/shared/messages'
+import { isGetPageAnalysisMessage, isGetPageTranscriptMessage } from '@/shared/messages'
 import { mergeSettingsFromStorageChange, readSettings } from '@/shared/settings'
+import { createTranscriptResult } from '@/shared/transcript'
 import { defaultSettings, type PageAnalysis } from '@/shared/types'
 import {
   dismissBadgeForAnalysis,
@@ -70,12 +71,28 @@ function handleBadgeDismissed(): void {
 
 function installMessageListener(): void {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (!isGetPageAnalysisMessage(message)) {
+    if (isGetPageAnalysisMessage(message)) {
+      sendResponse(currentAnalysis)
+
       return
     }
 
-    sendResponse(currentAnalysis)
+    if (isGetPageTranscriptMessage(message)) {
+      void respondWithTranscript(sendResponse)
+
+      return true
+    }
+
+    return
   })
+}
+
+async function respondWithTranscript(
+  sendResponse: (response?: unknown) => void,
+): Promise<void> {
+  const transcriptResult = await createTranscriptResult(document)
+
+  sendResponse(transcriptResult)
 }
 
 function installStorageListener(): void {

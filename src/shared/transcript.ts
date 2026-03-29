@@ -1,0 +1,127 @@
+import type { DefuddleResponse } from 'defuddle'
+import { MINIMUM_ARTICLE_WORDS } from './constants'
+import { createExtractionDocumentSnapshot, createPageMetadata } from './page-context'
+import { countWords, normalizeWhitespace } from './reading-time'
+import type { TranscriptPayload, TranscriptResult } from './types'
+
+export async function createTranscriptResult(document: Document): Promise<TranscriptResult> {
+  const pageMetadata = createPageMetadata(document)
+
+  try {
+    const snapshotDocument = createExtractionDocumentSnapshot(document)
+    const defuddleModule = await import('defuddle/full')
+    const Defuddle = defuddleModule.default
+    const parser = new Defuddle(snapshotDocument, {
+      markdown: true,
+      url: pageMetadata.sourceUrl,
+      useAsync: false,
+    })
+    const result = parser.parse()
+    const wordCount = getWordCount(result)
+    const hasEnoughWords = wordCount >= MINIMUM_ARTICLE_WORDS
+
+    if (!hasEnoughWords) {
+      return {
+        status: 'unavailable',
+        reason: 'below-threshold',
+      }
+    }
+
+    const markdown = normalizeMarkdown(result.content)
+    const hasMarkdown = markdown.length > 0
+
+    if (!hasMarkdown) {
+      return {
+        status: 'unavailable',
+        reason: 'parse-failed',
+      }
+    }
+
+    const title = pickPreferredText(result.title, pageMetadata.pageTitle)
+    const siteName = pickPreferredText(result.site, pageMetadata.siteName)
+    const domain = pickPreferredText(result.domain, pageMetadata.hostname)
+    const payload: TranscriptPayload = {
+      ...pageMetadata,
+      author: normalizeMetadataValue(result.author),
+      description: normalizeMetadataValue(result.description),
+      domain,
+      exportText: '',
+      favicon: normalizeMetadataValue(result.favicon),
+      image: normalizeMetadataValue(result.image),
+      language: normalizeMetadataValue(result.language),
+      markdown,
+      pageTitle: title,
+      published: normalizeMetadataValue(result.published),
+      siteName,
+      title,
+      wordCount,
+    }
+
+    payload.exportText = createTranscriptExportText(payload)
+
+    return {
+      status: 'ready',
+      payload,
+    }
+  } catch {
+    return {
+      status: 'unavailable',
+      reason: 'parse-failed',
+    }
+  }
+}
+
+export function createTranscriptExportText(payload: TranscriptPayload): string {
+  const metadataEntries = [
+    ['title', payload.title],
+    ['author', payload.author],
+    ['published', payload.published],
+    ['site', payload.siteName],
+    ['source', payload.sourceUrl],
+    ['domain', payload.domain],
+    ['language', payload.language],
+    ['description', payload.description],
+    ['image', payload.image],
+    ['favicon', payload.favicon],
+    ['word_count', String(payload.wordCount)],
+  ]
+  const populatedEntries = metadataEntries.filter(([, value]) => value.trim().length > 0)
+  const metadataLines = populatedEntries.map(([label, value]) => `${label}: ${JSON.stringify(value)}`)
+
+  return `${metadataLines.join('\n')}\n\n${payload.markdown}`
+}
+
+function getWordCount(result: DefuddleResponse): number {
+  const extractedWordCount = Math.round(result.wordCount)
+  const hasWordCount = Number.isFinite(extractedWordCount) && extractedWordCount > 0
+
+  if (hasWordCount) {
+    return extractedWordCount
+  }
+
+  const extractedText = normalizeMarkdown(result.content)
+
+  return countWords(extractedText)
+}
+
+function normalizeMarkdown(markdown: string): string {
+  const normalizedLineEndings = markdown.replace(/\r\n/gu, '\n')
+
+  return normalizedLineEndings.trim()
+}
+
+function pickPreferredText(candidateValue: string, fallbackValue: string): string {
+  const normalizedCandidate = normalizeMetadataValue(candidateValue)
+
+  if (normalizedCandidate.length > 0) {
+    return normalizedCandidate
+  }
+
+  return fallbackValue
+}
+
+function normalizeMetadataValue(value: string | null | undefined): string {
+  const safeValue = value ?? ''
+
+  return normalizeWhitespace(safeValue)
+}

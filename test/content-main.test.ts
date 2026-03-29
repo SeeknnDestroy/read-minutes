@@ -1,5 +1,6 @@
 import { ANALYSIS_DEBOUNCE_MS, BADGE_HOST_ID, CONTENT_OBSERVER_IDLE_MS } from '@/shared/constants'
 import { defaultSettings, type PageAnalysis } from '@/shared/types'
+import { createGetPageTranscriptMessage } from '@/shared/messages'
 
 describe('content script lifecycle', () => {
   beforeEach(() => {
@@ -14,6 +15,7 @@ describe('content script lifecycle', () => {
     vi.unstubAllGlobals()
     vi.doUnmock('@/shared/analysis')
     vi.doUnmock('@/shared/settings')
+    vi.doUnmock('@/shared/transcript')
     vi.doUnmock('@/content/badge')
     document.body.innerHTML = ''
     document.title = ''
@@ -100,6 +102,83 @@ describe('content script lifecycle', () => {
 
     expect(analyzeDocument).toHaveBeenCalledTimes(1)
   })
+
+  it('responds to transcript messages with local transcript results', async () => {
+    const analyzeDocument = vi.fn(() => createNoArticleAnalysis())
+    const createTranscriptResult = vi.fn(async () => ({
+      status: 'ready',
+      payload: {
+        author: '',
+        description: '',
+        domain: 'example.com',
+        exportText: 'title: "Example"\n\nBody copy',
+        favicon: '',
+        hostname: 'example.com',
+        image: '',
+        language: 'en',
+        markdown: 'Body copy',
+        pageTitle: 'Example',
+        published: '',
+        siteName: 'Example',
+        sourceUrl: 'https://example.com/post',
+        title: 'Example',
+        wordCount: 220,
+      },
+    }))
+    const chromeMock = createContentChromeMock()
+
+    vi.stubGlobal('chrome', chromeMock)
+    vi.doMock('@/shared/analysis', () => ({
+      analyzeDocument,
+    }))
+    vi.doMock('@/shared/transcript', () => ({
+      createTranscriptResult,
+    }))
+    vi.doMock('@/shared/settings', async () => {
+      const actualSettingsModule = await vi.importActual<typeof import('@/shared/settings')>('@/shared/settings')
+
+      return {
+        ...actualSettingsModule,
+        readSettings: vi.fn(async () => defaultSettings),
+      }
+    })
+    vi.doMock('@/content/badge', () => ({
+      renderBadge: vi.fn(),
+      removeBadge: vi.fn(),
+    }))
+
+    await import('@/content/main')
+    await flushMicrotasks()
+
+    const addListener = chromeMock.runtime.onMessage.addListener as ReturnType<typeof vi.fn>
+    const messageHandler = addListener.mock.calls[0]?.[0]
+    const sendResponse = vi.fn()
+    const listenerResult = messageHandler(createGetPageTranscriptMessage(), {}, sendResponse)
+
+    expect(listenerResult).toBe(true)
+    await flushMicrotasks()
+    expect(createTranscriptResult).toHaveBeenCalledTimes(1)
+    expect(sendResponse).toHaveBeenCalledWith({
+      status: 'ready',
+      payload: {
+        author: '',
+        description: '',
+        domain: 'example.com',
+        exportText: 'title: "Example"\n\nBody copy',
+        favicon: '',
+        hostname: 'example.com',
+        image: '',
+        language: 'en',
+        markdown: 'Body copy',
+        pageTitle: 'Example',
+        published: '',
+        siteName: 'Example',
+        sourceUrl: 'https://example.com/post',
+        title: 'Example',
+        wordCount: 220,
+      },
+    })
+  })
 })
 
 function mockContentScriptDependencies(
@@ -157,6 +236,9 @@ function createNoArticleAnalysis(): PageAnalysis {
 }
 
 async function flushMicrotasks(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
   await Promise.resolve()
   await Promise.resolve()
 }

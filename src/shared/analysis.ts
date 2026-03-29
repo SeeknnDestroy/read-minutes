@@ -1,15 +1,15 @@
 import Defuddle from 'defuddle'
 import type { DefuddleResponse } from 'defuddle'
-import { BADGE_HOST_ID } from './constants'
 import { MINIMUM_ARTICLE_WORDS } from './constants'
+import { createExtractionDocumentSnapshot, createPageMetadata } from './page-context'
 import { calculateReadingMinutes, countWords, formatReadingTime, normalizeWhitespace } from './reading-time'
 import type { ArticleAnalysis, ExtensionSettings, NoArticleAnalysis, PageAnalysis } from './types'
 
 export function analyzeDocument(document: Document, settings: ExtensionSettings): PageAnalysis {
-  const baseMetadata = createBaseMetadata(document)
+  const baseMetadata = createPageMetadata(document)
 
   try {
-    const analysisDocument = createAnalysisDocumentSnapshot(document)
+    const analysisDocument = createExtractionDocumentSnapshot(document)
     const parser = new Defuddle(analysisDocument, {
       url: baseMetadata.sourceUrl,
       useAsync: false,
@@ -37,31 +37,6 @@ export function analyzeDocument(document: Document, settings: ExtensionSettings)
     }
   } catch {
     return createNoArticleAnalysis(baseMetadata, 'parse-failed')
-  }
-}
-
-function createAnalysisDocumentSnapshot(document: Document): Document {
-  const html = document.documentElement.outerHTML
-  const parser = new DOMParser()
-  const snapshot = parser.parseFromString(`<!doctype html>${html}`, 'text/html')
-  const badgeHost = snapshot.getElementById(BADGE_HOST_ID)
-
-  badgeHost?.remove()
-
-  return snapshot
-}
-
-function createBaseMetadata(document: Document) {
-  const sourceUrl = document.location?.href ?? ''
-  const hostname = getHostname(sourceUrl)
-  const pageTitle = normalizeText(document.title) || hostname || 'This page'
-  const siteName = hostname || 'This page'
-
-  return {
-    hostname,
-    pageTitle,
-    siteName,
-    sourceUrl,
   }
 }
 
@@ -100,17 +75,6 @@ function normalizeText(value: string | null | undefined): string {
   const safeValue = value ?? ''
 
   return normalizeWhitespace(safeValue)
-}
-
-function getHostname(sourceUrl: string): string {
-  try {
-    const parsedUrl = new URL(sourceUrl)
-    const normalizedHostname = parsedUrl.hostname.replace(/^www\./u, '')
-
-    return normalizedHostname
-  } catch {
-    return ''
-  }
 }
 
 function createNoArticleAnalysis(

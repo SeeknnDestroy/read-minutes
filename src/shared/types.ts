@@ -30,8 +30,37 @@ export interface GetPageAnalysisMessage {
   type: typeof import('./constants').GET_PAGE_ANALYSIS_MESSAGE_TYPE
 }
 
+export interface GetPageTranscriptMessage {
+  type: typeof import('./constants').GET_PAGE_TRANSCRIPT_MESSAGE_TYPE
+}
+
+export interface TranscriptPayload extends AnalysisMetadata {
+  author: string
+  description: string
+  domain: string
+  exportText: string
+  favicon: string
+  image: string
+  language: string
+  markdown: string
+  published: string
+  title: string
+  wordCount: number
+}
+
+export interface TranscriptReadyResult {
+  status: 'ready'
+  payload: TranscriptPayload
+}
+
+export interface TranscriptUnavailableResult {
+  status: 'unavailable'
+  reason: NoArticleAnalysis['reason']
+}
+
+export type TranscriptResult = TranscriptReadyResult | TranscriptUnavailableResult
+
 export const defaultSettings: ExtensionSettings = {
   wordsPerMinute: DEFAULT_WORDS_PER_MINUTE,
   showInlineBadge: true,
 }
-
