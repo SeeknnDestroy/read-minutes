@@ -7,7 +7,10 @@ Read Minutes is a Chrome extension that estimates how long a blog post or newsle
 - Detects article-like content with `Defuddle`
 - Shows a floating top-right `X min read` badge on long-form pages
 - Shows page status, reading time, and word count in the popup
+- Lets you copy a page's cleaned markdown for LLM use
+- Opens a dedicated raw markdown viewer in a new extension tab
 - Lets the user change the reading-speed estimate in the popup
+- Keeps markdown extraction local by using Defuddle in-page with async/network fallbacks disabled
 
 ## Defaults
 
@@ -39,3 +42,4 @@ Read Minutes is a Chrome extension that estimates how long a blog post or newsle
   - `article.html` showed `2 min read`
   - `non-article.html` showed no badge
 - Popup state and settings persistence are covered by unit tests in [`test/popup-view-model.test.ts`](/Users/talhasari/Projects/github/reading-time-extension/test/popup-view-model.test.ts) and [`test/settings.test.ts`](/Users/talhasari/Projects/github/reading-time-extension/test/settings.test.ts).
+- Local markdown extraction, transcript storage handoff, popup transcript actions, and transcript-view rendering are covered by [`test/transcript.test.ts`](/Users/talhasari/Projects/github/reading-time-extension/test/transcript.test.ts), [`test/transcript-storage.test.ts`](/Users/talhasari/Projects/github/reading-time-extension/test/transcript-storage.test.ts), and [`test/popup-main.test.ts`](/Users/talhasari/Projects/github/reading-time-extension/test/popup-main.test.ts).
