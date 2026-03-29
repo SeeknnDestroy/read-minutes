@@ -65,7 +65,7 @@ function getBadgeElements(): {
     .dock-shell {
       box-sizing: border-box;
       display: grid;
-      gap: 8px;
+      position: relative;
       width: min(360px, calc(100vw - 24px));
       padding: 10px;
       border: 1px solid rgba(255, 241, 222, 0.12);
@@ -92,6 +92,8 @@ function getBadgeElements(): {
       display: grid;
       gap: 2px;
       min-width: 0;
+      justify-self: center;
+      text-align: center;
     }
 
     .dock-label {
@@ -120,9 +122,15 @@ function getBadgeElements(): {
       font: inherit;
     }
 
+    .dock-copy-stack {
+      position: relative;
+      display: grid;
+    }
+
     .dock-copy {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 9px;
       min-height: 42px;
       padding: 0 14px;
@@ -172,11 +180,21 @@ function getBadgeElements(): {
       opacity: 0.68;
     }
 
-    .dock-status {
+    .dock-toast {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
       margin: 0;
+      max-width: min(240px, calc(100vw - 48px));
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 241, 222, 0.12);
+      border-radius: 12px;
+      background: rgba(15, 18, 22, 0.96);
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
       color: #f0be73;
       font-size: 12px;
-      line-height: 1.45;
+      line-height: 1.35;
+      text-align: center;
     }
 
     .action-icon {
@@ -199,9 +217,19 @@ function getBadgeElements(): {
         grid-template-columns: minmax(0, 1fr) auto;
       }
 
-      .dock-copy {
+      .dock-copy-stack {
         grid-column: 1 / -1;
+      }
+
+      .dock-copy {
         justify-content: center;
+        width: 100%;
+      }
+
+      .dock-toast {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
       }
     }
   `
@@ -222,6 +250,7 @@ function createDockShell(
   const contextElement = document.createElement('div')
   const labelElement = document.createElement('p')
   const readingTimeElement = document.createElement('p')
+  const copyStackElement = document.createElement('div')
   const copyButtonElement = document.createElement('button')
   const copyButtonLabelElement = document.createElement('span')
   const closeButtonElement = document.createElement('button')
@@ -234,6 +263,7 @@ function createDockShell(
   readingTimeElement.className = 'dock-reading-time'
   readingTimeElement.textContent = viewModel.readingTimeLabel
   contextElement.append(labelElement, readingTimeElement)
+  copyStackElement.className = 'dock-copy-stack'
   copyButtonElement.className = 'dock-copy'
   copyButtonElement.dataset.role = 'badge-copy'
   copyButtonElement.type = 'button'
@@ -242,21 +272,24 @@ function createDockShell(
   copyButtonLabelElement.textContent = viewModel.copyButtonLabel
   copyButtonElement.append(createCopyIconElement(), copyButtonLabelElement)
   copyButtonElement.addEventListener('click', handlers.onCopy)
+  copyStackElement.append(copyButtonElement)
   closeButtonElement.className = 'dock-close'
   closeButtonElement.dataset.role = 'badge-close'
   closeButtonElement.type = 'button'
   closeButtonElement.setAttribute('aria-label', 'Close page tools')
   closeButtonElement.textContent = '×'
   closeButtonElement.addEventListener('click', handlers.onDismiss)
-  dockBarElement.append(contextElement, copyButtonElement, closeButtonElement)
+  dockBarElement.append(contextElement, copyStackElement, closeButtonElement)
   dockShellElement.append(dockBarElement)
 
   if (viewModel.message) {
-    const statusElement = document.createElement('p')
+    const toastElement = document.createElement('p')
 
-    statusElement.className = 'dock-status'
-    statusElement.textContent = viewModel.message
-    dockShellElement.append(statusElement)
+    toastElement.className = 'dock-toast'
+    toastElement.dataset.role = 'badge-toast'
+    toastElement.setAttribute('aria-live', 'polite')
+    toastElement.textContent = viewModel.message
+    copyStackElement.append(toastElement)
   }
 
   return dockShellElement

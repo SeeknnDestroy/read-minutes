@@ -23,11 +23,13 @@ const IGNORED_MUTATION_TAG_NAMES = new Set([
   'style',
   'template',
 ])
+const INLINE_DOCK_MESSAGE_DURATION_MS = 2400
 
 let currentAnalysis: PageAnalysis | null = null
 let currentSettings = defaultSettings
 let analysisTimer: number | undefined
 let contentObserverIdleTimer: number | undefined
+let inlineDockMessageTimer: number | undefined
 let currentLocationUrl = document.location.href
 let dismissedSourceUrl: string | null = null
 let contentMutationObserver: MutationObserver | null = null
@@ -304,10 +306,13 @@ export function getCurrentAnalysis(): PageAnalysis | null {
 }
 
 function updateInlineDockState(nextState: Partial<InlineDockState>): void {
-  inlineDockState = {
+  const mergedInlineDockState = {
     ...inlineDockState,
     ...nextState,
   }
+
+  inlineDockState = mergedInlineDockState
+  synchronizeInlineDockMessageTimer(mergedInlineDockState)
 
   if (currentAnalysis && shouldRenderBadge(
     currentAnalysis,
@@ -323,6 +328,7 @@ function updateInlineDockState(nextState: Partial<InlineDockState>): void {
 }
 
 function resetInlineDockState(): void {
+  clearInlineDockMessageTimer()
   inlineDockState = createDefaultInlineDockState()
 }
 
@@ -331,4 +337,25 @@ function createDefaultInlineDockState(): InlineDockState {
     busyAction: null,
     message: null,
   }
+}
+
+function synchronizeInlineDockMessageTimer(state: InlineDockState): void {
+  const shouldAutoClearMessage = state.busyAction === null && state.message !== null
+
+  clearInlineDockMessageTimer()
+
+  if (!shouldAutoClearMessage) {
+    return
+  }
+
+  inlineDockMessageTimer = window.setTimeout(() => {
+    updateInlineDockState({
+      message: null,
+    })
+  }, INLINE_DOCK_MESSAGE_DURATION_MS)
+}
+
+function clearInlineDockMessageTimer(): void {
+  window.clearTimeout(inlineDockMessageTimer)
+  inlineDockMessageTimer = undefined
 }

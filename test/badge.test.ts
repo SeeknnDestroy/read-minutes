@@ -6,6 +6,29 @@ describe('renderBadge', () => {
     removeBadge()
   })
 
+  it('centers the reading context and renders feedback as a toast popup', () => {
+    renderBadge(
+      {
+        copyButtonLabel: 'Copy page',
+        isActionBusy: false,
+        message: 'Markdown copied for LLM.',
+        readingTimeLabel: '8 min read',
+      },
+      {
+        onCopy: vi.fn(),
+        onDismiss: vi.fn(),
+      },
+    )
+
+    const badgeHost = document.getElementById(BADGE_HOST_ID)
+    const badgeStyleElement = badgeHost?.shadowRoot?.querySelector('style')
+    const toastElement = badgeHost?.shadowRoot?.querySelector<HTMLElement>('[data-role="badge-toast"]')
+
+    expect(badgeStyleElement?.textContent).toContain('justify-self: center;')
+    expect(badgeStyleElement?.textContent).toContain('text-align: center;')
+    expect(toastElement?.textContent).toBe('Markdown copied for LLM.')
+  })
+
   it('renders a close button that dismisses the badge', () => {
     const handleDismiss = vi.fn()
 

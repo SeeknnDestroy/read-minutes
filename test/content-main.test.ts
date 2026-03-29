@@ -179,6 +179,41 @@ describe('content script lifecycle', () => {
     expect(getBadgeText()).toContain('Markdown copied for LLM.')
   })
 
+  it('clears inline dock feedback after the toast timeout elapses', async () => {
+    const analyzeDocument = vi.fn(() => createArticleAnalysis())
+    const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
+    const chromeMock = createContentChromeMock()
+    const clipboardWriteText = vi.fn(async () => undefined)
+
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: clipboardWriteText,
+      },
+    })
+
+    mockInlineDockDependencies({
+      analyzeDocument,
+      chromeMock,
+      createTranscriptResultMock,
+    })
+
+    await import('@/content/main')
+    await flushMicrotasks()
+
+    const badgeCopyButton = getBadgeButton('[data-role="badge-copy"]')
+
+    badgeCopyButton?.click()
+    await flushMicrotasks()
+
+    expect(getBadgeText()).toContain('Markdown copied for LLM.')
+
+    vi.advanceTimersByTime(2401)
+    await flushMicrotasks()
+
+    expect(getBadgeText()).not.toContain('Markdown copied for LLM.')
+  })
+
   it('shows a simplified inline badge with copy and dismiss only', async () => {
     const analyzeDocument = vi.fn(() => createArticleAnalysis())
     const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
