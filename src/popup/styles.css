@@ -14,7 +14,8 @@ body {
   min-width: 360px;
 }
 
-.popup-shell {
+.popup-shell,
+.transcript-shell {
   box-sizing: border-box;
   display: grid;
   gap: 14px;
@@ -26,8 +27,11 @@ body {
 
 .hero-card,
 .controls-card,
+.actions-card,
 .metric-card,
-.empty-state {
+.empty-state,
+.transcript-card,
+.transcript-header {
   border: 1px solid rgba(42, 54, 50, 0.08);
   border-radius: 20px;
   background: rgba(255, 252, 246, 0.8);
@@ -39,6 +43,13 @@ body {
 
 .hero-card {
   padding: 18px;
+}
+
+.actions-card,
+.controls-card,
+.transcript-card,
+.transcript-header {
+  padding: 16px;
 }
 
 .eyebrow {
@@ -110,10 +121,50 @@ body {
   font-size: 14px;
 }
 
+.actions-card,
 .controls-card {
   display: grid;
   gap: 16px;
-  padding: 16px;
+}
+
+.actions-header {
+  display: grid;
+  gap: 4px;
+}
+
+.actions-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.action-button {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid rgba(42, 54, 50, 0.12);
+  border-radius: 12px;
+  background: #1f2a27;
+  color: #f5f1e8;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.action-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.action-button-secondary {
+  background: rgba(255, 255, 255, 0.9);
+  color: #1f2a27;
+}
+
+.action-status {
+  margin: 0;
+  font-size: 12px;
+  color: #7d6042;
 }
 
 .control-row,
@@ -153,4 +204,20 @@ input[type="checkbox"] {
   width: 18px;
   height: 18px;
   accent-color: #ba6c39;
+}
+
+.transcript-source {
+  color: #7d6042;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.transcript-markdown {
+  margin: 0;
+  color: #1f2a27;
+  font-family: "SFMono-Regular", "SF Mono", "Menlo", monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

@@ -57,6 +57,7 @@ function createPopupChromeMock(analysis: PageAnalysis) {
       },
     },
     tabs: {
+      create: vi.fn(async () => undefined),
       query: vi.fn(async () => [{ id: 1 }]),
       sendMessage: vi.fn(async () => analysis),
     },

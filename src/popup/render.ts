@@ -1,5 +1,5 @@
 import type { ExtensionSettings } from '@/shared/types'
-import type { PopupViewModel } from './view-model'
+import type { PopupViewModel, TranscriptViewModel } from './view-model'
 
 export function renderPopupContent(
   rootElement: HTMLDivElement,
@@ -19,10 +19,18 @@ function createPopupShell(
   popupShellElement.append(
     createHeroCard(viewModel),
     createMetricsSection(viewModel),
+    createTranscriptActionsCard(viewModel),
     createControlsCard(settings),
   )
 
   return popupShellElement
+}
+
+export function renderTranscriptViewContent(
+  rootElement: HTMLDivElement,
+  viewModel: TranscriptViewModel,
+): void {
+  rootElement.replaceChildren(createTranscriptShell(viewModel))
 }
 
 function createHeroCard(viewModel: PopupViewModel): HTMLElement {
@@ -96,6 +104,53 @@ function createEmptyState(message: string | null): HTMLElement {
   return emptyStateElement
 }
 
+function createTranscriptActionsCard(viewModel: PopupViewModel): HTMLElement {
+  const shouldShowTranscriptActions = viewModel.showTranscriptActions
+
+  if (!shouldShowTranscriptActions) {
+    return document.createDocumentFragment() as unknown as HTMLElement
+  }
+
+  const actionsCardElement = document.createElement('section')
+  const actionsHeaderElement = document.createElement('div')
+  const actionsLabelElement = document.createElement('p')
+  const actionsHelpElement = document.createElement('p')
+  const buttonsRowElement = document.createElement('div')
+  const copyButtonElement = document.createElement('button')
+  const openButtonElement = document.createElement('button')
+
+  actionsCardElement.className = 'actions-card'
+  actionsHeaderElement.className = 'actions-header'
+  actionsLabelElement.className = 'control-label'
+  actionsLabelElement.textContent = 'Markdown tools'
+  actionsHelpElement.className = 'control-help'
+  actionsHelpElement.textContent = 'Copy clean markdown for an LLM or open it in a dedicated page.'
+  buttonsRowElement.className = 'actions-row'
+  copyButtonElement.id = 'copy-markdown'
+  copyButtonElement.className = 'action-button'
+  copyButtonElement.type = 'button'
+  copyButtonElement.textContent = viewModel.copyButtonLabel
+  copyButtonElement.disabled = viewModel.isTranscriptActionBusy
+  openButtonElement.id = 'open-markdown'
+  openButtonElement.className = 'action-button action-button-secondary'
+  openButtonElement.type = 'button'
+  openButtonElement.textContent = viewModel.openButtonLabel
+  openButtonElement.disabled = viewModel.isTranscriptActionBusy
+  actionsHeaderElement.append(actionsLabelElement, actionsHelpElement)
+  buttonsRowElement.append(copyButtonElement, openButtonElement)
+  actionsCardElement.append(actionsHeaderElement, buttonsRowElement)
+
+  if (viewModel.transcriptActionMessage) {
+    const actionStatusElement = document.createElement('p')
+
+    actionStatusElement.className = 'action-status'
+    actionStatusElement.textContent = viewModel.transcriptActionMessage
+    actionsCardElement.append(actionStatusElement)
+  }
+
+  return actionsCardElement
+}
+
 function createControlsCard(settings: ExtensionSettings): HTMLElement {
   const controlsCardElement = document.createElement('section')
   const inlineBadgeControlElement = createInlineBadgeControl(settings.showInlineBadge)
@@ -128,6 +183,71 @@ function createInlineBadgeControl(showInlineBadge: boolean): HTMLElement {
   labelElement.append(controlCopyElement, inputElement)
 
   return labelElement
+}
+
+function createTranscriptShell(viewModel: TranscriptViewModel): HTMLElement {
+  const transcriptShellElement = document.createElement('main')
+  const transcriptHeaderElement = document.createElement('section')
+
+  transcriptShellElement.className = 'transcript-shell'
+  transcriptHeaderElement.className = 'transcript-header'
+  transcriptHeaderElement.append(
+    createTranscriptKicker(),
+    createTranscriptTitle(viewModel.pageTitle),
+  )
+
+  if (viewModel.sourceUrl.length > 0) {
+    transcriptHeaderElement.append(createTranscriptSourceLink(viewModel.sourceUrl))
+  }
+
+  transcriptShellElement.append(transcriptHeaderElement)
+
+  if (!viewModel.exportText) {
+    transcriptShellElement.append(createEmptyState(viewModel.emptyMessage))
+
+    return transcriptShellElement
+  }
+
+  const transcriptCardElement = document.createElement('section')
+  const transcriptMarkdownElement = document.createElement('pre')
+
+  transcriptCardElement.className = 'transcript-card'
+  transcriptMarkdownElement.className = 'transcript-markdown'
+  transcriptMarkdownElement.textContent = viewModel.exportText
+  transcriptCardElement.append(transcriptMarkdownElement)
+  transcriptShellElement.append(transcriptCardElement)
+
+  return transcriptShellElement
+}
+
+function createTranscriptKicker(): HTMLElement {
+  const transcriptKickerElement = document.createElement('p')
+
+  transcriptKickerElement.className = 'eyebrow'
+  transcriptKickerElement.textContent = 'Local Markdown Transcript'
+
+  return transcriptKickerElement
+}
+
+function createTranscriptTitle(pageTitle: string): HTMLElement {
+  const transcriptTitleElement = document.createElement('h1')
+
+  transcriptTitleElement.className = 'title'
+  transcriptTitleElement.textContent = pageTitle
+
+  return transcriptTitleElement
+}
+
+function createTranscriptSourceLink(sourceUrl: string): HTMLElement {
+  const transcriptSourceElement = document.createElement('a')
+
+  transcriptSourceElement.className = 'transcript-source'
+  transcriptSourceElement.href = sourceUrl
+  transcriptSourceElement.rel = 'noreferrer'
+  transcriptSourceElement.target = '_blank'
+  transcriptSourceElement.textContent = sourceUrl
+
+  return transcriptSourceElement
 }
 
 function createWordsPerMinuteField(wordsPerMinute: number): HTMLElement {
