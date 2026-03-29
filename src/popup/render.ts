@@ -187,20 +187,8 @@ function createInlineBadgeControl(showInlineBadge: boolean): HTMLElement {
 
 function createTranscriptShell(viewModel: TranscriptViewModel): HTMLElement {
   const transcriptShellElement = document.createElement('main')
-  const transcriptHeaderElement = document.createElement('section')
 
   transcriptShellElement.className = 'transcript-shell'
-  transcriptHeaderElement.className = 'transcript-header'
-  transcriptHeaderElement.append(
-    createTranscriptKicker(),
-    createTranscriptTitle(viewModel.pageTitle),
-  )
-
-  if (viewModel.sourceUrl.length > 0) {
-    transcriptHeaderElement.append(createTranscriptSourceLink(viewModel.sourceUrl))
-  }
-
-  transcriptShellElement.append(transcriptHeaderElement)
 
   if (!viewModel.exportText) {
     transcriptShellElement.append(createEmptyState(viewModel.emptyMessage))
@@ -208,46 +196,13 @@ function createTranscriptShell(viewModel: TranscriptViewModel): HTMLElement {
     return transcriptShellElement
   }
 
-  const transcriptCardElement = document.createElement('section')
   const transcriptMarkdownElement = document.createElement('pre')
 
-  transcriptCardElement.className = 'transcript-card'
-  transcriptMarkdownElement.className = 'transcript-markdown'
+  transcriptMarkdownElement.className = 'plain-text-page'
   transcriptMarkdownElement.textContent = viewModel.exportText
-  transcriptCardElement.append(transcriptMarkdownElement)
-  transcriptShellElement.append(transcriptCardElement)
+  transcriptShellElement.append(transcriptMarkdownElement)
 
   return transcriptShellElement
-}
-
-function createTranscriptKicker(): HTMLElement {
-  const transcriptKickerElement = document.createElement('p')
-
-  transcriptKickerElement.className = 'eyebrow'
-  transcriptKickerElement.textContent = 'Local Markdown Transcript'
-
-  return transcriptKickerElement
-}
-
-function createTranscriptTitle(pageTitle: string): HTMLElement {
-  const transcriptTitleElement = document.createElement('h1')
-
-  transcriptTitleElement.className = 'title'
-  transcriptTitleElement.textContent = pageTitle
-
-  return transcriptTitleElement
-}
-
-function createTranscriptSourceLink(sourceUrl: string): HTMLElement {
-  const transcriptSourceElement = document.createElement('a')
-
-  transcriptSourceElement.className = 'transcript-source'
-  transcriptSourceElement.href = sourceUrl
-  transcriptSourceElement.rel = 'noreferrer'
-  transcriptSourceElement.target = '_blank'
-  transcriptSourceElement.textContent = sourceUrl
-
-  return transcriptSourceElement
 }
 
 function createWordsPerMinuteField(wordsPerMinute: number): HTMLElement {

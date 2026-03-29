@@ -25,9 +25,13 @@ describe('createTranscriptResult', () => {
     }
 
     expect(result.payload.markdown).toContain('Long-form reading works best when the page feels calm')
+    expect(result.payload.exportText.startsWith('---\n')).toBe(true)
     expect(result.payload.exportText).toContain('title: "Designing Better Reading Sessions"')
+    expect(result.payload.exportText).toContain('site: "example.com"')
     expect(result.payload.exportText).toContain('source: "https://example.com/designing-better-reading-sessions"')
-    expect(result.payload.exportText).toContain('word_count: "')
+    expect(result.payload.exportText).toContain('word_count: ')
+    expect(result.payload.exportText).toContain('\n---\n\n')
+    expect(result.payload.exportText.endsWith(result.payload.markdown)).toBe(true)
   })
 
   it('returns unavailable for non-article content', async () => {
@@ -38,6 +42,37 @@ describe('createTranscriptResult', () => {
       status: 'unavailable',
       reason: 'below-threshold',
     })
+  })
+
+  it('keeps fenced code block languages in the raw markdown export', async () => {
+    const html = `
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <title>Code Example</title>
+        </head>
+        <body>
+          <main>
+            <article>
+              <h1>Code Example</h1>
+              <p>${'word '.repeat(220)}</p>
+              <pre><code class="language-python">from fastapi import FastAPI\napp = FastAPI()</code></pre>
+            </article>
+          </main>
+        </body>
+      </html>
+    `
+    const dom = new JSDOM(html, { url: 'https://example.com/code-example' })
+    const result = await createTranscriptResult(dom.window.document)
+
+    expect(result.status).toBe('ready')
+
+    if (result.status !== 'ready') {
+      throw new Error('Expected transcript extraction to succeed for the code fixture.')
+    }
+
+    expect(result.payload.exportText).toContain('```python')
+    expect(result.payload.exportText).toContain('from fastapi import FastAPI')
   })
 })
 

@@ -120,7 +120,9 @@ describe('transcript view mode', () => {
     await import('@/popup/main')
     await flushMicrotasks()
 
-    expect(document.querySelector('.transcript-markdown')?.textContent).toBe(transcriptPayload.exportText)
+    expect(document.body.classList.contains('transcript-body')).toBe(true)
+    expect(document.querySelector('.plain-text-page')?.textContent).toBe(transcriptPayload.exportText)
+    expect(document.querySelector('.transcript-header')).toBeNull()
     expect(chromeMock.storage.session.snapshot()).toEqual({})
   })
 })
@@ -238,7 +240,7 @@ function createTranscriptPayload(): TranscriptPayload {
     author: '',
     description: '',
     domain: 'example.com',
-    exportText: 'title: "Example Article"\nsource: "https://example.com/article"\nword_count: "1020"\n\nBody copy',
+    exportText: '---\ntitle: "Example Article"\nsite: "Example"\nsource: "https://example.com/article"\nword_count: 1020\n---\n\nBody copy',
     favicon: '',
     hostname: 'example.com',
     image: '',

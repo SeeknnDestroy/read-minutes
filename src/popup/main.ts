@@ -226,6 +226,12 @@ async function initializeTranscriptView(): Promise<void> {
     : null
   const viewModel = createTranscriptViewModel(transcriptPayload)
 
+  document.body.classList.add('transcript-body')
+
+  if (transcriptPayload) {
+    document.title = transcriptPayload.title
+  }
+
   renderTranscriptViewContent(popupRootElement, viewModel)
 }
 

@@ -74,21 +74,21 @@ export async function createTranscriptResult(document: Document): Promise<Transc
 export function createTranscriptExportText(payload: TranscriptPayload): string {
   const metadataEntries = [
     ['title', payload.title],
-    ['author', payload.author],
-    ['published', payload.published],
     ['site', payload.siteName],
     ['source', payload.sourceUrl],
     ['domain', payload.domain],
+    ['author', payload.author],
+    ['published', payload.published],
     ['language', payload.language],
     ['description', payload.description],
     ['image', payload.image],
     ['favicon', payload.favicon],
-    ['word_count', String(payload.wordCount)],
+    ['word_count', payload.wordCount],
   ]
-  const populatedEntries = metadataEntries.filter(([, value]) => value.trim().length > 0)
-  const metadataLines = populatedEntries.map(([label, value]) => `${label}: ${JSON.stringify(value)}`)
+  const populatedEntries = metadataEntries.filter(([, value]) => hasMetadataValue(value))
+  const metadataLines = populatedEntries.map(([label, value]) => `${label}: ${formatMetadataValue(value)}`)
 
-  return `${metadataLines.join('\n')}\n\n${payload.markdown}`
+  return `---\n${metadataLines.join('\n')}\n---\n\n${payload.markdown}`
 }
 
 function getWordCount(result: DefuddleResponse): number {
@@ -124,4 +124,20 @@ function normalizeMetadataValue(value: string | null | undefined): string {
   const safeValue = value ?? ''
 
   return normalizeWhitespace(safeValue)
+}
+
+function hasMetadataValue(value: number | string): boolean {
+  if (typeof value === 'number') {
+    return Number.isFinite(value)
+  }
+
+  return value.trim().length > 0
+}
+
+function formatMetadataValue(value: number | string): string {
+  if (typeof value === 'number') {
+    return String(value)
+  }
+
+  return JSON.stringify(value)
 }

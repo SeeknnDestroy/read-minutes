@@ -52,4 +52,15 @@ describe('analyzeDocument DOM safety', () => {
     expect(dom.window.document.body.innerHTML).toBe(originalMarkup)
     expect(dom.window.document.getElementById('header')).not.toBeNull()
   })
+
+  it('removes picture elements without img fallbacks from extraction snapshots', async () => {
+    const { createExtractionDocumentSnapshot } = await import('@/shared/page-context')
+    const dom = new JSDOM(
+      '<!doctype html><html><head><title>Example</title></head><body><main><article><picture><source srcset="/hero.webp" type="image/webp"></picture><p>Body copy</p></article></main></body></html>',
+      { url: 'https://example.com/post' },
+    )
+    const snapshot = createExtractionDocumentSnapshot(dom.window.document)
+
+    expect(snapshot.querySelector('picture')).toBeNull()
+  })
 })

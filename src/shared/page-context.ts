@@ -9,6 +9,7 @@ export function createExtractionDocumentSnapshot(document: Document): Document {
   const badgeHost = snapshot.getElementById(BADGE_HOST_ID)
 
   badgeHost?.remove()
+  removePicturesWithoutImgFallback(snapshot)
 
   return snapshot
 }
@@ -42,4 +43,18 @@ function getHostname(sourceUrl: string): string {
   } catch {
     return ''
   }
+}
+
+function removePicturesWithoutImgFallback(document: Document): void {
+  const pictureElements = document.querySelectorAll('picture')
+
+  pictureElements.forEach((pictureElement) => {
+    const imgElement = pictureElement.querySelector('img')
+
+    if (imgElement) {
+      return
+    }
+
+    pictureElement.remove()
+  })
 }

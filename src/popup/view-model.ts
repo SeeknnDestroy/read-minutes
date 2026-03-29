@@ -23,8 +23,6 @@ export interface PopupViewModel {
 export interface TranscriptViewModel {
   emptyMessage: string | null
   exportText: string | null
-  pageTitle: string
-  sourceUrl: string
 }
 
 const defaultTranscriptActionState: PopupTranscriptActionState = {
@@ -93,15 +91,11 @@ export function createTranscriptViewModel(payload: TranscriptPayload | null): Tr
     return {
       emptyMessage: 'Markdown transcript was unavailable or has already been opened.',
       exportText: null,
-      pageTitle: 'Markdown transcript',
-      sourceUrl: '',
     }
   }
 
   return {
     emptyMessage: null,
     exportText: payload.exportText,
-    pageTitle: payload.title,
-    sourceUrl: payload.sourceUrl,
   }
 }
