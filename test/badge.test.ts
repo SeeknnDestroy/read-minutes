@@ -33,8 +33,8 @@ describe('renderBadge', () => {
   it('renders the glow-trace exit state for animated dismissal', () => {
     renderBadge(
       {
-        copyButtonLabel: 'Copied',
-        exitReason: 'copy-success',
+        copyButtonLabel: 'Copy page',
+        exitReason: 'auto-close',
         isActionBusy: true,
         message: null,
         readingTimeLabel: '8 min read',
@@ -50,7 +50,7 @@ describe('renderBadge', () => {
     const dockShellElement = badgeHost?.shadowRoot?.querySelector<HTMLElement>('.dock-shell')
 
     expect(badgeStyleElement?.textContent).toContain('conic-gradient(')
-    expect(dockShellElement?.dataset.exitReason).toBe('copy-success')
+    expect(dockShellElement?.dataset.exitReason).toBe('auto-close')
   })
 
   it('renders a close button that dismisses the badge', () => {

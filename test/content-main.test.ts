@@ -2,6 +2,7 @@ import {
   ANALYSIS_DEBOUNCE_MS,
   BADGE_HOST_ID,
   CONTENT_OBSERVER_IDLE_MS,
+  INLINE_DOCK_AUTO_CLOSE_DELAY_MS,
   INLINE_DOCK_EXIT_DURATION_MS,
 } from '@/shared/constants'
 import { defaultSettings, type PageAnalysis, type TranscriptPayload, type TranscriptResult } from '@/shared/types'
@@ -173,29 +174,22 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
+    await flushPromises()
 
     const badgeCopyButton = getBadgeButton('[data-role="badge-copy"]')
 
     badgeCopyButton?.click()
-    await flushMicrotasks()
+    await flushPromises()
 
     expect(clipboardWriteText).toHaveBeenCalledWith(createTranscriptPayload().exportText)
-    expect(getBadgeShell()?.dataset.exitReason).toBe('copy-success')
+    expect(getBadgeShell()?.dataset.exitReason).toBeUndefined()
+    expect(getBadgeText()).toContain('Markdown copied for LLM.')
   })
 
-  it('dismisses the inline dock after the copy-success exit animation finishes', async () => {
+  it('starts the inline dock exit only after the five-second auto-close delay elapses', async () => {
     const analyzeDocument = vi.fn(() => createArticleAnalysis())
     const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
     const chromeMock = createContentChromeMock()
-    const clipboardWriteText = vi.fn(async () => undefined)
-
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: {
-        writeText: clipboardWriteText,
-      },
-    })
 
     mockInlineDockDependencies({
       analyzeDocument,
@@ -204,17 +198,17 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
-
-    const badgeCopyButton = getBadgeButton('[data-role="badge-copy"]')
-
-    badgeCopyButton?.click()
-    await flushMicrotasks()
+    await flushPromises()
 
     expect(document.getElementById(BADGE_HOST_ID)).not.toBeNull()
 
+    vi.advanceTimersByTime(INLINE_DOCK_AUTO_CLOSE_DELAY_MS)
+    await flushPromises()
+
+    expect(getBadgeShell()?.dataset.exitReason).toBe('auto-close')
+
     vi.advanceTimersByTime(INLINE_DOCK_EXIT_DURATION_MS + 1)
-    await flushMicrotasks()
+    await flushPromises()
 
     expect(document.getElementById(BADGE_HOST_ID)).toBeNull()
   })
@@ -231,7 +225,7 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
+    await flushPromises()
 
     expect(getBadgeButton('[data-role="badge-copy"]')).not.toBeNull()
     expect(getBadgeButton('[data-role="badge-open"]')).toBeNull()
@@ -249,12 +243,12 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
+    await flushPromises()
 
     const closeButton = getBadgeButton('[data-role="badge-close"]')
 
     closeButton?.click()
-    await flushMicrotasks()
+    await flushPromises()
 
     expect(getBadgeShell()?.dataset.exitReason).toBe('dismiss')
 
@@ -432,6 +426,12 @@ function getBadgeButton(selector: string): HTMLButtonElement | null {
   return badgeHost?.shadowRoot?.querySelector<HTMLButtonElement>(selector) ?? null
 }
 
+function getBadgeText(): string {
+  const badgeHost = document.getElementById(BADGE_HOST_ID)
+
+  return badgeHost?.shadowRoot?.textContent ?? ''
+}
+
 function getBadgeShell(): HTMLElement | null {
   const badgeHost = document.getElementById(BADGE_HOST_ID)
 
@@ -445,4 +445,19 @@ async function flushMicrotasks(): Promise<void> {
   await Promise.resolve()
   await Promise.resolve()
   await vi.dynamicImportSettled()
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
 }

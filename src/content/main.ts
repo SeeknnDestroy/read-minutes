@@ -2,6 +2,7 @@ import {
   ANALYSIS_DEBOUNCE_MS,
   BADGE_HOST_ID,
   CONTENT_OBSERVER_IDLE_MS,
+  INLINE_DOCK_AUTO_CLOSE_DELAY_MS,
   INLINE_DOCK_EXIT_DURATION_MS,
 } from '@/shared/constants'
 import { analyzeDocument } from '@/shared/analysis'
@@ -34,6 +35,7 @@ let currentAnalysis: PageAnalysis | null = null
 let currentSettings = defaultSettings
 let analysisTimer: number | undefined
 let contentObserverIdleTimer: number | undefined
+let inlineDockAutoCloseTimer: number | undefined
 let inlineDockMessageTimer: number | undefined
 let inlineDockExitTimer: number | undefined
 let currentLocationUrl = document.location.href
@@ -99,15 +101,12 @@ function handleBadgeDismissed(): void {
 
 function renderInlineDock(analysis: ArticleAnalysis): void {
   const isCopyActionBusy = inlineDockState.busyAction === 'copy'
-  const isCopySuccessExit = inlineDockState.exitReason === 'copy-success'
 
   renderBadge(
     {
       copyButtonLabel: isCopyActionBusy
         ? 'Copying...'
-        : isCopySuccessExit
-          ? 'Copied'
-          : 'Copy page',
+        : 'Copy page',
       exitReason: inlineDockState.exitReason,
       isActionBusy: inlineDockState.busyAction !== null || inlineDockState.exitReason !== null,
       message: inlineDockState.exitReason ? null : inlineDockState.message,
@@ -118,6 +117,8 @@ function renderInlineDock(analysis: ArticleAnalysis): void {
       onDismiss: handleBadgeDismissed,
     },
   )
+
+  ensureInlineDockAutoCloseTimer()
 }
 
 function handleInlineCopyRequested(): void {
@@ -169,7 +170,10 @@ async function handleInlineCopy(): Promise<void> {
     }
 
     await navigator.clipboard.writeText(transcriptResult.payload.exportText)
-    startInlineDockExit('copy-success')
+    updateInlineDockState({
+      busyAction: null,
+      message: 'Markdown copied for LLM.',
+    })
   } catch {
     updateInlineDockState({
       busyAction: null,
@@ -332,10 +336,12 @@ function updateInlineDockState(nextState: Partial<InlineDockState>): void {
     return
   }
 
+  clearInlineDockAutoCloseTimer()
   removeBadge()
 }
 
 function resetInlineDockState(): void {
+  clearInlineDockAutoCloseTimer()
   clearInlineDockMessageTimer()
   clearInlineDockExitTimer()
   inlineDockState = createDefaultInlineDockState()
@@ -377,12 +383,28 @@ function clearInlineDockMessageTimer(): void {
   inlineDockMessageTimer = undefined
 }
 
+function clearInlineDockAutoCloseTimer(): void {
+  window.clearTimeout(inlineDockAutoCloseTimer)
+  inlineDockAutoCloseTimer = undefined
+}
+
 function clearInlineDockExitTimer(): void {
   window.clearTimeout(inlineDockExitTimer)
   inlineDockExitTimer = undefined
 }
 
+function ensureInlineDockAutoCloseTimer(): void {
+  if (inlineDockAutoCloseTimer !== undefined || inlineDockState.exitReason !== null) {
+    return
+  }
+
+  inlineDockAutoCloseTimer = window.setTimeout(() => {
+    startInlineDockExit('auto-close')
+  }, INLINE_DOCK_AUTO_CLOSE_DELAY_MS)
+}
+
 function startInlineDockExit(exitReason: InlineDockState['exitReason']): void {
+  clearInlineDockAutoCloseTimer()
   updateInlineDockState({
     busyAction: null,
     exitReason,

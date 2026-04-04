@@ -7,7 +7,7 @@ export interface InlineDockHandlers {
 
 export interface InlineDockViewModel {
   copyButtonLabel: string
-  exitReason: 'copy-success' | 'dismiss' | null
+  exitReason: 'auto-close' | 'dismiss' | null
   isActionBusy: boolean
   message: string | null
   readingTimeLabel: string
@@ -255,15 +255,6 @@ function getBadgeElements(): {
     .dock-shell[data-exit-reason] .dock-bar,
     .dock-shell[data-exit-reason] .dock-toast {
       animation: dock-fade-away var(--dock-exit-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards;
-    }
-
-    .dock-shell[data-exit-reason="copy-success"] .dock-copy-label {
-      color: #ffefcd;
-    }
-
-    .dock-shell[data-exit-reason="copy-success"] .dock-copy {
-      border-color: rgba(255, 219, 153, 0.34);
-      background: linear-gradient(180deg, rgba(255, 215, 149, 0.12) 0%, rgba(255, 215, 149, 0.06) 100%);
     }
 
     .dock-shell[data-exit-reason="dismiss"]::after {
