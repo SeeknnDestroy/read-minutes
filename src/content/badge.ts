@@ -1,4 +1,8 @@
-import { BADGE_HOST_ID, INLINE_DOCK_EXIT_DURATION_MS } from '@/shared/constants'
+import {
+  BADGE_HOST_ID,
+  INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
+  INLINE_DOCK_DISMISS_EXIT_DURATION_MS,
+} from '@/shared/constants'
 
 export interface InlineDockHandlers {
   onCopy: () => void
@@ -82,7 +86,11 @@ function getBadgeElements(): {
       font-family: "Avenir Next", "Segoe UI", sans-serif;
       isolation: isolate;
       pointer-events: auto;
-      --dock-exit-duration: ${INLINE_DOCK_EXIT_DURATION_MS}ms;
+      --dock-exit-duration: ${INLINE_DOCK_DISMISS_EXIT_DURATION_MS}ms;
+    }
+
+    .dock-shell[data-exit-reason="auto-close"] {
+      --dock-exit-duration: ${INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS}ms;
     }
 
     .dock-trace {
@@ -244,7 +252,7 @@ function getBadgeElements(): {
       text-align: center;
     }
 
-    .dock-shell[data-exit-reason] {
+    .dock-shell[data-exit-reason="dismiss"] {
       pointer-events: none;
     }
 
@@ -252,9 +260,14 @@ function getBadgeElements(): {
       opacity: 1;
     }
 
-    .dock-shell[data-exit-reason] .dock-bar,
-    .dock-shell[data-exit-reason] .dock-toast {
-      animation: dock-fade-away var(--dock-exit-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    .dock-shell[data-exit-reason="dismiss"] .dock-bar,
+    .dock-shell[data-exit-reason="dismiss"] .dock-toast {
+      animation: dock-dismiss-fade var(--dock-exit-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .dock-shell[data-exit-reason="auto-close"] .dock-bar,
+    .dock-shell[data-exit-reason="auto-close"] .dock-toast {
+      animation: dock-auto-close-fade var(--dock-exit-duration) linear forwards;
     }
 
     .dock-shell[data-exit-reason] .dock-trace-trail {
@@ -267,23 +280,13 @@ function getBadgeElements(): {
 
     @keyframes dock-border-draw {
       0% {
-        opacity: 0;
+        opacity: 1;
         stroke-dasharray: 0 100;
         stroke-dashoffset: 0;
       }
 
-      7% {
-        opacity: 1;
-      }
-
-      88% {
-        opacity: 1;
-        stroke-dasharray: 100 0;
-        stroke-dashoffset: 0;
-      }
-
       100% {
-        opacity: 0;
+        opacity: 1;
         stroke-dasharray: 100 0;
         stroke-dashoffset: 0;
       }
@@ -295,18 +298,30 @@ function getBadgeElements(): {
         stroke-dashoffset: 0;
       }
 
-      88% {
-        opacity: 1;
-        stroke-dashoffset: -100;
-      }
-
       100% {
-        opacity: 0;
+        opacity: 1;
         stroke-dashoffset: -100;
       }
     }
 
-    @keyframes dock-fade-away {
+    @keyframes dock-auto-close-fade {
+      0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      96% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.992);
+      }
+    }
+
+    @keyframes dock-dismiss-fade {
       0% {
         opacity: 1;
         transform: translateY(0) scale(1);

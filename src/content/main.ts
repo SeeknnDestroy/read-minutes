@@ -3,7 +3,8 @@ import {
   BADGE_HOST_ID,
   CONTENT_OBSERVER_IDLE_MS,
   INLINE_DOCK_AUTO_CLOSE_DELAY_MS,
-  INLINE_DOCK_EXIT_DURATION_MS,
+  INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
+  INLINE_DOCK_DISMISS_EXIT_DURATION_MS,
 } from '@/shared/constants'
 import { analyzeDocument } from '@/shared/analysis'
 import { isGetPageAnalysisMessage, isGetPageTranscriptMessage } from '@/shared/messages'
@@ -108,8 +109,8 @@ function renderInlineDock(analysis: ArticleAnalysis): void {
         ? 'Copying...'
         : 'Copy page',
       exitReason: inlineDockState.exitReason,
-      isActionBusy: inlineDockState.busyAction !== null || inlineDockState.exitReason !== null,
-      message: inlineDockState.exitReason ? null : inlineDockState.message,
+      isActionBusy: inlineDockState.busyAction !== null || inlineDockState.exitReason === 'dismiss',
+      message: inlineDockState.exitReason === 'dismiss' ? null : inlineDockState.message,
       readingTimeLabel: analysis.readingTimeLabel,
     },
     {
@@ -362,7 +363,10 @@ function synchronizeInlineDockTimers(state: InlineDockState): void {
   clearInlineDockMessageTimer()
 
   if (state.exitReason) {
-    inlineDockExitTimer = window.setTimeout(finalizeInlineDockExit, INLINE_DOCK_EXIT_DURATION_MS)
+    inlineDockExitTimer = window.setTimeout(
+      finalizeInlineDockExit,
+      getInlineDockExitDurationMs(state.exitReason),
+    )
 
     return
   }
@@ -419,4 +423,10 @@ function finalizeInlineDockExit(): void {
 
   resetInlineDockState()
   removeBadge()
+}
+
+function getInlineDockExitDurationMs(exitReason: NonNullable<InlineDockState['exitReason']>): number {
+  return exitReason === 'auto-close'
+    ? INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS
+    : INLINE_DOCK_DISMISS_EXIT_DURATION_MS
 }
