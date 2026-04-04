@@ -186,7 +186,7 @@ describe('content script lifecycle', () => {
     expect(getBadgeText()).toContain('Markdown copied for LLM.')
   })
 
-  it('starts the inline dock exit only after the five-second auto-close delay elapses', async () => {
+  it('starts the inline dock exit only after the three-second auto-close delay elapses', async () => {
     const analyzeDocument = vi.fn(() => createArticleAnalysis())
     const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
     const chromeMock = createContentChromeMock()

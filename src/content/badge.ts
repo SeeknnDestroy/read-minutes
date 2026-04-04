@@ -85,40 +85,44 @@ function getBadgeElements(): {
       --dock-exit-duration: ${INLINE_DOCK_EXIT_DURATION_MS}ms;
     }
 
-    .dock-shell::before,
-    .dock-shell::after {
-      content: '';
+    .dock-trace {
       position: absolute;
       inset: 0;
-      border-radius: inherit;
+      width: 100%;
+      height: 100%;
       pointer-events: none;
       opacity: 0;
+      overflow: visible;
     }
 
-    .dock-shell::before {
-      padding: 1px;
-      background:
-        conic-gradient(
-          from -120deg,
-          rgba(255, 241, 222, 0) 0deg,
-          rgba(255, 241, 222, 0) 286deg,
-          rgba(255, 226, 160, 0.14) 314deg,
-          rgba(255, 244, 223, 0.96) 340deg,
-          rgba(224, 170, 83, 0.88) 360deg
-        );
-      -webkit-mask:
-        linear-gradient(#fff 0 0) content-box,
-        linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
+    .dock-trace-rect {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+      transform-box: fill-box;
+      transform-origin: center;
+      transform: rotate(-90deg);
     }
 
-    .dock-shell::after {
-      inset: -24%;
-      background:
-        radial-gradient(circle at 14% 50%, rgba(247, 199, 106, 0.3) 0%, rgba(247, 199, 106, 0.08) 26%, rgba(247, 199, 106, 0) 62%);
-      filter: blur(20px);
-      transform: translateX(-18%) scale(0.92);
+    .dock-trace-trail {
+      stroke: rgba(255, 251, 243, 0.96);
+      stroke-width: 1.9;
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      filter:
+        drop-shadow(0 0 5px rgba(255, 255, 255, 0.78))
+        drop-shadow(0 0 12px rgba(255, 248, 214, 0.42));
+    }
+
+    .dock-trace-head {
+      stroke: rgba(255, 255, 255, 1);
+      stroke-width: 2.6;
+      stroke-dasharray: 12 88;
+      stroke-dashoffset: 0;
+      filter:
+        drop-shadow(0 0 9px rgba(255, 255, 255, 1))
+        drop-shadow(0 0 16px rgba(255, 248, 225, 0.66));
     }
 
     .dock-bar {
@@ -244,12 +248,8 @@ function getBadgeElements(): {
       pointer-events: none;
     }
 
-    .dock-shell[data-exit-reason]::before {
-      animation: dock-border-trace var(--dock-exit-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards;
-    }
-
-    .dock-shell[data-exit-reason]::after {
-      animation: dock-ambient-sweep var(--dock-exit-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    .dock-shell[data-exit-reason] .dock-trace {
+      opacity: 1;
     }
 
     .dock-shell[data-exit-reason] .dock-bar,
@@ -257,43 +257,49 @@ function getBadgeElements(): {
       animation: dock-fade-away var(--dock-exit-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
 
-    .dock-shell[data-exit-reason="dismiss"]::after {
-      opacity: 0.72;
+    .dock-shell[data-exit-reason] .dock-trace-trail {
+      animation: dock-border-draw var(--dock-exit-duration) linear forwards;
     }
 
-    @keyframes dock-border-trace {
+    .dock-shell[data-exit-reason] .dock-trace-head {
+      animation: dock-border-head var(--dock-exit-duration) linear forwards;
+    }
+
+    @keyframes dock-border-draw {
       0% {
         opacity: 0;
-        transform: rotate(-120deg) scale(0.985);
+        stroke-dashoffset: 100;
       }
 
-      14% {
+      7% {
         opacity: 1;
       }
 
-      82% {
+      88% {
         opacity: 1;
+        stroke-dashoffset: 0;
       }
 
       100% {
         opacity: 0;
-        transform: rotate(228deg) scale(1.015);
+        stroke-dashoffset: 0;
       }
     }
 
-    @keyframes dock-ambient-sweep {
+    @keyframes dock-border-head {
       0% {
-        opacity: 0;
-        transform: translateX(-18%) scale(0.92);
+        opacity: 1;
+        stroke-dashoffset: 0;
       }
 
-      22% {
-        opacity: 0.88;
+      88% {
+        opacity: 1;
+        stroke-dashoffset: -100;
       }
 
       100% {
         opacity: 0;
-        transform: translateX(20%) scale(1.08);
+        stroke-dashoffset: -100;
       }
     }
 
@@ -363,6 +369,7 @@ function createDockShell(
 ): HTMLElement {
   const dockShellElement = document.createElement('div')
   const dockBarElement = document.createElement('div')
+  const traceElement = createTraceElement()
   const contextElement = document.createElement('div')
   const labelElement = document.createElement('p')
   const readingTimeElement = document.createElement('p')
@@ -399,7 +406,7 @@ function createDockShell(
   closeButtonElement.textContent = '×'
   closeButtonElement.addEventListener('click', handlers.onDismiss)
   dockBarElement.append(contextElement, copyStackElement, closeButtonElement)
-  dockShellElement.append(dockBarElement)
+  dockShellElement.append(traceElement, dockBarElement)
 
   if (viewModel.message) {
     const toastElement = document.createElement('p')
@@ -412,6 +419,34 @@ function createDockShell(
   }
 
   return dockShellElement
+}
+
+function createTraceElement(): SVGElement {
+  const traceElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  const trailRectElement = document.createElementNS(traceElement.namespaceURI, 'rect')
+  const headRectElement = document.createElementNS(traceElement.namespaceURI, 'rect')
+
+  traceElement.classList.add('dock-trace')
+  traceElement.setAttribute('viewBox', '0 0 360 78')
+  traceElement.setAttribute('preserveAspectRatio', 'none')
+  traceElement.setAttribute('aria-hidden', 'true')
+
+  for (const rectElement of [trailRectElement, headRectElement]) {
+    rectElement.setAttribute('x', '1.5')
+    rectElement.setAttribute('y', '1.5')
+    rectElement.setAttribute('width', '357')
+    rectElement.setAttribute('height', '75')
+    rectElement.setAttribute('rx', '18')
+    rectElement.setAttribute('ry', '18')
+    rectElement.setAttribute('pathLength', '100')
+    rectElement.classList.add('dock-trace-rect')
+  }
+
+  trailRectElement.classList.add('dock-trace-trail')
+  headRectElement.classList.add('dock-trace-head')
+  traceElement.append(trailRectElement, headRectElement)
+
+  return traceElement
 }
 
 function createCopyIconElement(): SVGElement {

@@ -30,7 +30,7 @@ describe('renderBadge', () => {
     expect(toastElement?.textContent).toBe('Copying markdown failed.')
   })
 
-  it('renders the glow-trace exit state for animated dismissal', () => {
+  it('renders the perimeter trace exit state for animated dismissal', () => {
     renderBadge(
       {
         copyButtonLabel: 'Copy page',
@@ -48,9 +48,11 @@ describe('renderBadge', () => {
     const badgeHost = document.getElementById(BADGE_HOST_ID)
     const badgeStyleElement = badgeHost?.shadowRoot?.querySelector('style')
     const dockShellElement = badgeHost?.shadowRoot?.querySelector<HTMLElement>('.dock-shell')
+    const traceElement = badgeHost?.shadowRoot?.querySelector<SVGElement>('.dock-trace')
 
-    expect(badgeStyleElement?.textContent).toContain('conic-gradient(')
+    expect(badgeStyleElement?.textContent).toContain('stroke-dashoffset')
     expect(dockShellElement?.dataset.exitReason).toBe('auto-close')
+    expect(traceElement?.querySelectorAll('.dock-trace-rect')).toHaveLength(2)
   })
 
   it('renders a close button that dismisses the badge', () => {
