@@ -93,6 +93,7 @@ function getBadgeElements(): {
       pointer-events: none;
       opacity: 0;
       overflow: visible;
+      z-index: 2;
     }
 
     .dock-trace-rect {
@@ -100,15 +101,12 @@ function getBadgeElements(): {
       stroke-linecap: round;
       stroke-linejoin: round;
       vector-effect: non-scaling-stroke;
-      transform-box: fill-box;
-      transform-origin: center;
-      transform: rotate(-90deg);
     }
 
     .dock-trace-trail {
       stroke: rgba(255, 251, 243, 0.96);
       stroke-width: 1.9;
-      stroke-dasharray: 100;
+      stroke-dasharray: 0 100;
       stroke-dashoffset: 100;
       filter:
         drop-shadow(0 0 5px rgba(255, 255, 255, 0.78))
@@ -130,6 +128,8 @@ function getBadgeElements(): {
       grid-template-columns: minmax(0, 1fr) auto auto;
       align-items: center;
       gap: 10px;
+      position: relative;
+      z-index: 1;
     }
 
     .dock-context {
@@ -268,7 +268,8 @@ function getBadgeElements(): {
     @keyframes dock-border-draw {
       0% {
         opacity: 0;
-        stroke-dashoffset: 100;
+        stroke-dasharray: 0 100;
+        stroke-dashoffset: 0;
       }
 
       7% {
@@ -277,11 +278,13 @@ function getBadgeElements(): {
 
       88% {
         opacity: 1;
+        stroke-dasharray: 100 0;
         stroke-dashoffset: 0;
       }
 
       100% {
         opacity: 0;
+        stroke-dasharray: 100 0;
         stroke-dashoffset: 0;
       }
     }
@@ -309,13 +312,14 @@ function getBadgeElements(): {
         transform: translateY(0) scale(1);
       }
 
-      70% {
-        opacity: 0.92;
+      78% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
       }
 
       100% {
         opacity: 0;
-        transform: translateY(-8px) scale(0.985);
+        transform: translateY(-6px) scale(0.988);
       }
     }
 
@@ -423,28 +427,34 @@ function createDockShell(
 
 function createTraceElement(): SVGElement {
   const traceElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  const trailRectElement = document.createElementNS(traceElement.namespaceURI, 'rect')
-  const headRectElement = document.createElementNS(traceElement.namespaceURI, 'rect')
+  const trailPathElement = document.createElementNS(traceElement.namespaceURI, 'path')
+  const headPathElement = document.createElementNS(traceElement.namespaceURI, 'path')
+  const roundedRectPath = [
+    'M 20 2',
+    'H 340',
+    'A 18 18 0 0 1 358 20',
+    'V 58',
+    'A 18 18 0 0 1 340 76',
+    'H 20',
+    'A 18 18 0 0 1 2 58',
+    'V 20',
+    'A 18 18 0 0 1 20 2',
+  ].join(' ')
 
   traceElement.classList.add('dock-trace')
   traceElement.setAttribute('viewBox', '0 0 360 78')
   traceElement.setAttribute('preserveAspectRatio', 'none')
   traceElement.setAttribute('aria-hidden', 'true')
 
-  for (const rectElement of [trailRectElement, headRectElement]) {
-    rectElement.setAttribute('x', '1.5')
-    rectElement.setAttribute('y', '1.5')
-    rectElement.setAttribute('width', '357')
-    rectElement.setAttribute('height', '75')
-    rectElement.setAttribute('rx', '18')
-    rectElement.setAttribute('ry', '18')
-    rectElement.setAttribute('pathLength', '100')
-    rectElement.classList.add('dock-trace-rect')
+  for (const pathElement of [trailPathElement, headPathElement]) {
+    pathElement.setAttribute('d', roundedRectPath)
+    pathElement.setAttribute('pathLength', '100')
+    pathElement.classList.add('dock-trace-rect')
   }
 
-  trailRectElement.classList.add('dock-trace-trail')
-  headRectElement.classList.add('dock-trace-head')
-  traceElement.append(trailRectElement, headRectElement)
+  trailPathElement.classList.add('dock-trace-trail')
+  headPathElement.classList.add('dock-trace-head')
+  traceElement.append(trailPathElement, headPathElement)
 
   return traceElement
 }
