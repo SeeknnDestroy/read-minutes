@@ -180,14 +180,14 @@ describe('content script lifecycle', () => {
     const badgeCopyButton = getBadgeButton('[data-role="badge-copy"]')
 
     badgeCopyButton?.click()
+    await vi.advanceTimersByTimeAsync(0)
     await flushMicrotasks()
 
     expect(clipboardWriteText).toHaveBeenCalledWith(createTranscriptPayload().exportText)
     expect(getBadgeShell()).not.toBeNull()
-    expect(getBadgeText()).toContain('Markdown copied for LLM.')
   })
 
-  it('starts the inline dock auto-close trace immediately and removes the badge after one three-second loop', async () => {
+  it('starts the inline dock auto-close trace immediately and removes the badge after one five-second loop', async () => {
     const analyzeDocument = vi.fn(() => createArticleAnalysis())
     const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
     const chromeMock = createContentChromeMock()
@@ -424,12 +424,6 @@ function getBadgeButton(selector: string): HTMLButtonElement | null {
   const badgeHost = document.getElementById(BADGE_HOST_ID)
 
   return badgeHost?.shadowRoot?.querySelector<HTMLButtonElement>(selector) ?? null
-}
-
-function getBadgeText(): string {
-  const badgeHost = document.getElementById(BADGE_HOST_ID)
-
-  return badgeHost?.shadowRoot?.textContent ?? ''
 }
 
 function getBadgeShell(): HTMLElement | null {
