@@ -10,8 +10,9 @@ describe('renderBadge', () => {
     renderBadge(
       {
         copyButtonLabel: 'Copy page',
+        exitReason: null,
         isActionBusy: false,
-        message: 'Markdown copied for LLM.',
+        message: 'Copying markdown failed.',
         readingTimeLabel: '8 min read',
       },
       {
@@ -26,7 +27,30 @@ describe('renderBadge', () => {
 
     expect(badgeStyleElement?.textContent).toContain('padding-inline-start: 14px;')
     expect(badgeStyleElement?.textContent).toContain('text-align: left;')
-    expect(toastElement?.textContent).toBe('Markdown copied for LLM.')
+    expect(toastElement?.textContent).toBe('Copying markdown failed.')
+  })
+
+  it('renders the glow-trace exit state for animated dismissal', () => {
+    renderBadge(
+      {
+        copyButtonLabel: 'Copied',
+        exitReason: 'copy-success',
+        isActionBusy: true,
+        message: null,
+        readingTimeLabel: '8 min read',
+      },
+      {
+        onCopy: vi.fn(),
+        onDismiss: vi.fn(),
+      },
+    )
+
+    const badgeHost = document.getElementById(BADGE_HOST_ID)
+    const badgeStyleElement = badgeHost?.shadowRoot?.querySelector('style')
+    const dockShellElement = badgeHost?.shadowRoot?.querySelector<HTMLElement>('.dock-shell')
+
+    expect(badgeStyleElement?.textContent).toContain('conic-gradient(')
+    expect(dockShellElement?.dataset.exitReason).toBe('copy-success')
   })
 
   it('renders a close button that dismisses the badge', () => {
@@ -35,6 +59,7 @@ describe('renderBadge', () => {
     renderBadge(
       {
         copyButtonLabel: 'Copy page',
+        exitReason: null,
         isActionBusy: false,
         message: null,
         readingTimeLabel: '8 min read',

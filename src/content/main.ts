@@ -1,4 +1,9 @@
-import { ANALYSIS_DEBOUNCE_MS, BADGE_HOST_ID, CONTENT_OBSERVER_IDLE_MS } from '@/shared/constants'
+import {
+  ANALYSIS_DEBOUNCE_MS,
+  BADGE_HOST_ID,
+  CONTENT_OBSERVER_IDLE_MS,
+  INLINE_DOCK_EXIT_DURATION_MS,
+} from '@/shared/constants'
 import { analyzeDocument } from '@/shared/analysis'
 import { isGetPageAnalysisMessage, isGetPageTranscriptMessage } from '@/shared/messages'
 import { mergeSettingsFromStorageChange, readSettings } from '@/shared/settings'
@@ -13,7 +18,7 @@ import {
   shouldRenderBadge,
   updateDismissedSourceUrlForLocationChange,
 } from './badge-visibility'
-import { removeBadge, renderBadge } from './badge'
+import { removeBadge, renderBadge, type InlineDockViewModel } from './badge'
 
 const IGNORED_MUTATION_TAG_NAMES = new Set([
   'link',
@@ -30,6 +35,7 @@ let currentSettings = defaultSettings
 let analysisTimer: number | undefined
 let contentObserverIdleTimer: number | undefined
 let inlineDockMessageTimer: number | undefined
+let inlineDockExitTimer: number | undefined
 let currentLocationUrl = document.location.href
 let dismissedSourceUrl: string | null = null
 let contentMutationObserver: MutationObserver | null = null
@@ -37,6 +43,7 @@ let inlineDockState: InlineDockState = createDefaultInlineDockState()
 
 interface InlineDockState {
   busyAction: 'copy' | 'open' | null
+  exitReason: InlineDockViewModel['exitReason']
   message: string | null
 }
 
@@ -83,23 +90,27 @@ function scheduleAnalysis(): void {
 }
 
 function handleBadgeDismissed(): void {
-  if (!currentAnalysis) {
+  if (!currentAnalysis || inlineDockState.exitReason) {
     return
   }
 
-  dismissedSourceUrl = dismissBadgeForAnalysis(currentAnalysis)
-  resetInlineDockState()
-  removeBadge()
+  startInlineDockExit('dismiss')
 }
 
 function renderInlineDock(analysis: ArticleAnalysis): void {
   const isCopyActionBusy = inlineDockState.busyAction === 'copy'
+  const isCopySuccessExit = inlineDockState.exitReason === 'copy-success'
 
   renderBadge(
     {
-      copyButtonLabel: isCopyActionBusy ? 'Copying...' : 'Copy page',
-      isActionBusy: inlineDockState.busyAction !== null,
-      message: inlineDockState.message,
+      copyButtonLabel: isCopyActionBusy
+        ? 'Copying...'
+        : isCopySuccessExit
+          ? 'Copied'
+          : 'Copy page',
+      exitReason: inlineDockState.exitReason,
+      isActionBusy: inlineDockState.busyAction !== null || inlineDockState.exitReason !== null,
+      message: inlineDockState.exitReason ? null : inlineDockState.message,
       readingTimeLabel: analysis.readingTimeLabel,
     },
     {
@@ -158,10 +169,7 @@ async function handleInlineCopy(): Promise<void> {
     }
 
     await navigator.clipboard.writeText(transcriptResult.payload.exportText)
-    updateInlineDockState({
-      busyAction: null,
-      message: 'Markdown copied for LLM.',
-    })
+    startInlineDockExit('copy-success')
   } catch {
     updateInlineDockState({
       busyAction: null,
@@ -312,7 +320,7 @@ function updateInlineDockState(nextState: Partial<InlineDockState>): void {
   }
 
   inlineDockState = mergedInlineDockState
-  synchronizeInlineDockMessageTimer(mergedInlineDockState)
+  synchronizeInlineDockTimers(mergedInlineDockState)
 
   if (currentAnalysis && shouldRenderBadge(
     currentAnalysis,
@@ -329,20 +337,29 @@ function updateInlineDockState(nextState: Partial<InlineDockState>): void {
 
 function resetInlineDockState(): void {
   clearInlineDockMessageTimer()
+  clearInlineDockExitTimer()
   inlineDockState = createDefaultInlineDockState()
 }
 
 function createDefaultInlineDockState(): InlineDockState {
   return {
     busyAction: null,
+    exitReason: null,
     message: null,
   }
 }
 
-function synchronizeInlineDockMessageTimer(state: InlineDockState): void {
+function synchronizeInlineDockTimers(state: InlineDockState): void {
+  clearInlineDockExitTimer()
   const shouldAutoClearMessage = state.busyAction === null && state.message !== null
 
   clearInlineDockMessageTimer()
+
+  if (state.exitReason) {
+    inlineDockExitTimer = window.setTimeout(finalizeInlineDockExit, INLINE_DOCK_EXIT_DURATION_MS)
+
+    return
+  }
 
   if (!shouldAutoClearMessage) {
     return
@@ -358,4 +375,26 @@ function synchronizeInlineDockMessageTimer(state: InlineDockState): void {
 function clearInlineDockMessageTimer(): void {
   window.clearTimeout(inlineDockMessageTimer)
   inlineDockMessageTimer = undefined
+}
+
+function clearInlineDockExitTimer(): void {
+  window.clearTimeout(inlineDockExitTimer)
+  inlineDockExitTimer = undefined
+}
+
+function startInlineDockExit(exitReason: InlineDockState['exitReason']): void {
+  updateInlineDockState({
+    busyAction: null,
+    exitReason,
+    message: null,
+  })
+}
+
+function finalizeInlineDockExit(): void {
+  if (currentAnalysis) {
+    dismissedSourceUrl = dismissBadgeForAnalysis(currentAnalysis)
+  }
+
+  resetInlineDockState()
+  removeBadge()
 }

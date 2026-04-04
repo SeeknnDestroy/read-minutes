@@ -1,4 +1,4 @@
-import { BADGE_HOST_ID } from '@/shared/constants'
+import { BADGE_HOST_ID, INLINE_DOCK_EXIT_DURATION_MS } from '@/shared/constants'
 
 export interface InlineDockHandlers {
   onCopy: () => void
@@ -7,6 +7,7 @@ export interface InlineDockHandlers {
 
 export interface InlineDockViewModel {
   copyButtonLabel: string
+  exitReason: 'copy-success' | 'dismiss' | null
   isActionBusy: boolean
   message: string | null
   readingTimeLabel: string
@@ -70,6 +71,7 @@ function getBadgeElements(): {
       padding: 12px;
       border: 1px solid rgba(255, 241, 222, 0.12);
       border-radius: 18px;
+      overflow: hidden;
       background:
         radial-gradient(circle at top left, rgba(216, 161, 75, 0.18) 0, rgba(12, 14, 17, 0) 44%),
         linear-gradient(180deg, rgba(22, 26, 31, 0.96) 0%, rgba(11, 13, 16, 0.98) 100%);
@@ -78,7 +80,45 @@ function getBadgeElements(): {
         inset 0 1px 0 rgba(255, 255, 255, 0.04);
       color: #fff7ec;
       font-family: "Avenir Next", "Segoe UI", sans-serif;
+      isolation: isolate;
       pointer-events: auto;
+      --dock-exit-duration: ${INLINE_DOCK_EXIT_DURATION_MS}ms;
+    }
+
+    .dock-shell::before,
+    .dock-shell::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    .dock-shell::before {
+      padding: 1px;
+      background:
+        conic-gradient(
+          from -120deg,
+          rgba(255, 241, 222, 0) 0deg,
+          rgba(255, 241, 222, 0) 286deg,
+          rgba(255, 226, 160, 0.14) 314deg,
+          rgba(255, 244, 223, 0.96) 340deg,
+          rgba(224, 170, 83, 0.88) 360deg
+        );
+      -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+
+    .dock-shell::after {
+      inset: -24%;
+      background:
+        radial-gradient(circle at 14% 50%, rgba(247, 199, 106, 0.3) 0%, rgba(247, 199, 106, 0.08) 26%, rgba(247, 199, 106, 0) 62%);
+      filter: blur(20px);
+      transform: translateX(-18%) scale(0.92);
     }
 
     .dock-bar {
@@ -200,6 +240,88 @@ function getBadgeElements(): {
       text-align: center;
     }
 
+    .dock-shell[data-exit-reason] {
+      pointer-events: none;
+    }
+
+    .dock-shell[data-exit-reason]::before {
+      animation: dock-border-trace var(--dock-exit-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .dock-shell[data-exit-reason]::after {
+      animation: dock-ambient-sweep var(--dock-exit-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .dock-shell[data-exit-reason] .dock-bar,
+    .dock-shell[data-exit-reason] .dock-toast {
+      animation: dock-fade-away var(--dock-exit-duration) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .dock-shell[data-exit-reason="copy-success"] .dock-copy-label {
+      color: #ffefcd;
+    }
+
+    .dock-shell[data-exit-reason="copy-success"] .dock-copy {
+      border-color: rgba(255, 219, 153, 0.34);
+      background: linear-gradient(180deg, rgba(255, 215, 149, 0.12) 0%, rgba(255, 215, 149, 0.06) 100%);
+    }
+
+    .dock-shell[data-exit-reason="dismiss"]::after {
+      opacity: 0.72;
+    }
+
+    @keyframes dock-border-trace {
+      0% {
+        opacity: 0;
+        transform: rotate(-120deg) scale(0.985);
+      }
+
+      14% {
+        opacity: 1;
+      }
+
+      82% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0;
+        transform: rotate(228deg) scale(1.015);
+      }
+    }
+
+    @keyframes dock-ambient-sweep {
+      0% {
+        opacity: 0;
+        transform: translateX(-18%) scale(0.92);
+      }
+
+      22% {
+        opacity: 0.88;
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateX(20%) scale(1.08);
+      }
+    }
+
+    @keyframes dock-fade-away {
+      0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      70% {
+        opacity: 0.92;
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.985);
+      }
+    }
+
     .action-icon {
       width: 18px;
       height: 18px;
@@ -259,6 +381,9 @@ function createDockShell(
   const closeButtonElement = document.createElement('button')
 
   dockShellElement.className = 'dock-shell'
+  if (viewModel.exitReason) {
+    dockShellElement.dataset.exitReason = viewModel.exitReason
+  }
   dockBarElement.className = 'dock-bar'
   contextElement.className = 'dock-context'
   labelElement.className = 'dock-label'

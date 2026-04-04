@@ -1,4 +1,9 @@
-import { ANALYSIS_DEBOUNCE_MS, BADGE_HOST_ID, CONTENT_OBSERVER_IDLE_MS } from '@/shared/constants'
+import {
+  ANALYSIS_DEBOUNCE_MS,
+  BADGE_HOST_ID,
+  CONTENT_OBSERVER_IDLE_MS,
+  INLINE_DOCK_EXIT_DURATION_MS,
+} from '@/shared/constants'
 import { defaultSettings, type PageAnalysis, type TranscriptPayload, type TranscriptResult } from '@/shared/types'
 import { createGetPageTranscriptMessage } from '@/shared/messages'
 
@@ -176,10 +181,10 @@ describe('content script lifecycle', () => {
     await flushMicrotasks()
 
     expect(clipboardWriteText).toHaveBeenCalledWith(createTranscriptPayload().exportText)
-    expect(getBadgeText()).toContain('Markdown copied for LLM.')
+    expect(getBadgeShell()?.dataset.exitReason).toBe('copy-success')
   })
 
-  it('clears inline dock feedback after the toast timeout elapses', async () => {
+  it('dismisses the inline dock after the copy-success exit animation finishes', async () => {
     const analyzeDocument = vi.fn(() => createArticleAnalysis())
     const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
     const chromeMock = createContentChromeMock()
@@ -206,12 +211,12 @@ describe('content script lifecycle', () => {
     badgeCopyButton?.click()
     await flushMicrotasks()
 
-    expect(getBadgeText()).toContain('Markdown copied for LLM.')
+    expect(document.getElementById(BADGE_HOST_ID)).not.toBeNull()
 
-    vi.advanceTimersByTime(2401)
+    vi.advanceTimersByTime(INLINE_DOCK_EXIT_DURATION_MS + 1)
     await flushMicrotasks()
 
-    expect(getBadgeText()).not.toContain('Markdown copied for LLM.')
+    expect(document.getElementById(BADGE_HOST_ID)).toBeNull()
   })
 
   it('shows a simplified inline badge with copy and dismiss only', async () => {
@@ -249,6 +254,11 @@ describe('content script lifecycle', () => {
     const closeButton = getBadgeButton('[data-role="badge-close"]')
 
     closeButton?.click()
+    await flushMicrotasks()
+
+    expect(getBadgeShell()?.dataset.exitReason).toBe('dismiss')
+
+    vi.advanceTimersByTime(INLINE_DOCK_EXIT_DURATION_MS + 1)
     await flushMicrotasks()
 
     expect(document.getElementById(BADGE_HOST_ID)).toBeNull()
@@ -422,10 +432,10 @@ function getBadgeButton(selector: string): HTMLButtonElement | null {
   return badgeHost?.shadowRoot?.querySelector<HTMLButtonElement>(selector) ?? null
 }
 
-function getBadgeText(): string {
+function getBadgeShell(): HTMLElement | null {
   const badgeHost = document.getElementById(BADGE_HOST_ID)
 
-  return badgeHost?.shadowRoot?.textContent ?? ''
+  return badgeHost?.shadowRoot?.querySelector<HTMLElement>('.dock-shell') ?? null
 }
 
 async function flushMicrotasks(): Promise<void> {
