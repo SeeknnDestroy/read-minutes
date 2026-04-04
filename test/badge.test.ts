@@ -52,7 +52,7 @@ describe('renderBadge', () => {
 
     expect(badgeStyleElement?.textContent).toContain('stroke-dashoffset')
     expect(dockShellElement?.dataset.exitReason).toBe('auto-close')
-    expect(traceElement?.querySelectorAll('.dock-trace-rect')).toHaveLength(2)
+    expect(traceElement?.querySelectorAll('.dock-trace-rect')).toHaveLength(1)
   })
 
   it('renders a close button that dismisses the badge', () => {

@@ -111,20 +111,10 @@ function getBadgeElements(): {
       vector-effect: non-scaling-stroke;
     }
 
-    .dock-trace-trail {
-      stroke: rgba(255, 251, 243, 0.96);
-      stroke-width: 1.9;
-      stroke-dasharray: 0 100;
-      stroke-dashoffset: 100;
-      filter:
-        drop-shadow(0 0 5px rgba(255, 255, 255, 0.78))
-        drop-shadow(0 0 12px rgba(255, 248, 214, 0.42));
-    }
-
     .dock-trace-head {
       stroke: rgba(255, 255, 255, 1);
       stroke-width: 2.6;
-      stroke-dasharray: 12 88;
+      stroke-dasharray: 11 89;
       stroke-dashoffset: 0;
       filter:
         drop-shadow(0 0 9px rgba(255, 255, 255, 1))
@@ -270,26 +260,8 @@ function getBadgeElements(): {
       animation: dock-auto-close-fade var(--dock-exit-duration) linear forwards;
     }
 
-    .dock-shell[data-exit-reason] .dock-trace-trail {
-      animation: dock-border-draw var(--dock-exit-duration) linear forwards;
-    }
-
     .dock-shell[data-exit-reason] .dock-trace-head {
       animation: dock-border-head var(--dock-exit-duration) linear forwards;
-    }
-
-    @keyframes dock-border-draw {
-      0% {
-        opacity: 1;
-        stroke-dasharray: 0 100;
-        stroke-dashoffset: 0;
-      }
-
-      100% {
-        opacity: 1;
-        stroke-dasharray: 100 0;
-        stroke-dashoffset: 0;
-      }
     }
 
     @keyframes dock-border-head {
@@ -442,7 +414,6 @@ function createDockShell(
 
 function createTraceElement(): SVGElement {
   const traceElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  const trailPathElement = document.createElementNS(traceElement.namespaceURI, 'path')
   const headPathElement = document.createElementNS(traceElement.namespaceURI, 'path')
   const roundedRectPath = [
     'M 20 2',
@@ -461,15 +432,11 @@ function createTraceElement(): SVGElement {
   traceElement.setAttribute('preserveAspectRatio', 'none')
   traceElement.setAttribute('aria-hidden', 'true')
 
-  for (const pathElement of [trailPathElement, headPathElement]) {
-    pathElement.setAttribute('d', roundedRectPath)
-    pathElement.setAttribute('pathLength', '100')
-    pathElement.classList.add('dock-trace-rect')
-  }
-
-  trailPathElement.classList.add('dock-trace-trail')
+  headPathElement.setAttribute('d', roundedRectPath)
+  headPathElement.setAttribute('pathLength', '100')
+  headPathElement.classList.add('dock-trace-rect')
   headPathElement.classList.add('dock-trace-head')
-  traceElement.append(trailPathElement, headPathElement)
+  traceElement.append(headPathElement)
 
   return traceElement
 }

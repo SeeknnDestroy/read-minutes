@@ -180,10 +180,9 @@ describe('content script lifecycle', () => {
     const badgeCopyButton = getBadgeButton('[data-role="badge-copy"]')
 
     badgeCopyButton?.click()
-    await vi.waitFor(() => {
-      expect(clipboardWriteText).toHaveBeenCalledWith(createTranscriptPayload().exportText)
-    })
+    await flushMicrotasks()
 
+    expect(clipboardWriteText).toHaveBeenCalledWith(createTranscriptPayload().exportText)
     expect(getBadgeShell()).not.toBeNull()
     expect(getBadgeText()).toContain('Markdown copied for LLM.')
   })
