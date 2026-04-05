@@ -2,9 +2,7 @@ import {
   ANALYSIS_DEBOUNCE_MS,
   BADGE_HOST_ID,
   CONTENT_OBSERVER_IDLE_MS,
-  INLINE_DOCK_AUTO_CLOSE_DELAY_MS,
   INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
-  INLINE_DOCK_DISMISS_EXIT_DURATION_MS,
 } from '@/shared/constants'
 import { analyzeDocument } from '@/shared/analysis'
 import { isGetPageAnalysisMessage, isGetPageTranscriptMessage } from '@/shared/messages'
@@ -36,7 +34,6 @@ let currentAnalysis: PageAnalysis | null = null
 let currentSettings = defaultSettings
 let analysisTimer: number | undefined
 let contentObserverIdleTimer: number | undefined
-let inlineDockAutoCloseTimer: number | undefined
 let inlineDockMessageTimer: number | undefined
 let inlineDockExitTimer: number | undefined
 let currentLocationUrl = document.location.href
@@ -77,6 +74,14 @@ function runAnalysis(): void {
     currentSettings.showInlineBadge,
     dismissedSourceUrl,
   )) {
+    if (inlineDockState.exitReason === null) {
+      inlineDockState = {
+        ...inlineDockState,
+        exitReason: 'auto-close',
+      }
+      synchronizeInlineDockTimers(inlineDockState)
+    }
+
     renderInlineDock(currentAnalysis)
 
     return
@@ -93,11 +98,13 @@ function scheduleAnalysis(): void {
 }
 
 function handleBadgeDismissed(): void {
-  if (!currentAnalysis || inlineDockState.exitReason === 'dismiss') {
+  if (!currentAnalysis) {
     return
   }
 
-  startInlineDockExit('dismiss')
+  dismissedSourceUrl = dismissBadgeForAnalysis(currentAnalysis)
+  resetInlineDockState()
+  removeBadge()
 }
 
 function renderInlineDock(analysis: ArticleAnalysis): void {
@@ -109,8 +116,8 @@ function renderInlineDock(analysis: ArticleAnalysis): void {
         ? 'Copying...'
         : 'Copy page',
       exitReason: inlineDockState.exitReason,
-      isActionBusy: inlineDockState.busyAction !== null || inlineDockState.exitReason === 'dismiss',
-      message: inlineDockState.exitReason === 'dismiss' ? null : inlineDockState.message,
+      isActionBusy: inlineDockState.busyAction !== null,
+      message: inlineDockState.message,
       readingTimeLabel: analysis.readingTimeLabel,
     },
     {
@@ -118,8 +125,6 @@ function renderInlineDock(analysis: ArticleAnalysis): void {
       onDismiss: handleBadgeDismissed,
     },
   )
-
-  ensureInlineDockAutoCloseTimer()
 }
 
 function handleInlineCopyRequested(): void {
@@ -337,12 +342,10 @@ function updateInlineDockState(nextState: Partial<InlineDockState>): void {
     return
   }
 
-  clearInlineDockAutoCloseTimer()
   removeBadge()
 }
 
 function resetInlineDockState(): void {
-  clearInlineDockAutoCloseTimer()
   clearInlineDockMessageTimer()
   clearInlineDockExitTimer()
   inlineDockState = createDefaultInlineDockState()
@@ -365,7 +368,7 @@ function synchronizeInlineDockTimers(state: InlineDockState): void {
   if (state.exitReason) {
     inlineDockExitTimer = window.setTimeout(
       finalizeInlineDockExit,
-      getInlineDockExitDurationMs(state.exitReason),
+      INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
     )
 
     return
@@ -387,33 +390,9 @@ function clearInlineDockMessageTimer(): void {
   inlineDockMessageTimer = undefined
 }
 
-function clearInlineDockAutoCloseTimer(): void {
-  window.clearTimeout(inlineDockAutoCloseTimer)
-  inlineDockAutoCloseTimer = undefined
-}
-
 function clearInlineDockExitTimer(): void {
   window.clearTimeout(inlineDockExitTimer)
   inlineDockExitTimer = undefined
-}
-
-function ensureInlineDockAutoCloseTimer(): void {
-  if (inlineDockAutoCloseTimer !== undefined || inlineDockState.exitReason !== null) {
-    return
-  }
-
-  inlineDockAutoCloseTimer = window.setTimeout(() => {
-    startInlineDockExit('auto-close')
-  }, INLINE_DOCK_AUTO_CLOSE_DELAY_MS)
-}
-
-function startInlineDockExit(exitReason: InlineDockState['exitReason']): void {
-  clearInlineDockAutoCloseTimer()
-  updateInlineDockState({
-    busyAction: null,
-    exitReason,
-    message: null,
-  })
 }
 
 function finalizeInlineDockExit(): void {
@@ -423,10 +402,4 @@ function finalizeInlineDockExit(): void {
 
   resetInlineDockState()
   removeBadge()
-}
-
-function getInlineDockExitDurationMs(exitReason: NonNullable<InlineDockState['exitReason']>): number {
-  return exitReason === 'auto-close'
-    ? INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS
-    : INLINE_DOCK_DISMISS_EXIT_DURATION_MS
 }

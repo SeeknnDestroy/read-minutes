@@ -2,9 +2,7 @@ import {
   ANALYSIS_DEBOUNCE_MS,
   BADGE_HOST_ID,
   CONTENT_OBSERVER_IDLE_MS,
-  INLINE_DOCK_AUTO_CLOSE_DELAY_MS,
   INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
-  INLINE_DOCK_DISMISS_EXIT_DURATION_MS,
 } from '@/shared/constants'
 import { defaultSettings, type PageAnalysis, type TranscriptPayload, type TranscriptResult } from '@/shared/types'
 import { createGetPageTranscriptMessage } from '@/shared/messages'
@@ -175,7 +173,6 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await vi.advanceTimersByTimeAsync(INLINE_DOCK_AUTO_CLOSE_DELAY_MS + 1)
     await flushMicrotasks()
 
     expect(getBadgeShell()?.dataset.exitReason).toBe('auto-close')
@@ -202,7 +199,6 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await vi.advanceTimersByTimeAsync(INLINE_DOCK_AUTO_CLOSE_DELAY_MS + 1)
     await flushMicrotasks()
 
     expect(document.getElementById(BADGE_HOST_ID)).not.toBeNull()
@@ -250,11 +246,6 @@ describe('content script lifecycle', () => {
 
     closeButton?.click()
 
-    expect(getBadgeShell()?.dataset.exitReason).toBe('dismiss')
-
-    vi.advanceTimersByTime(INLINE_DOCK_DISMISS_EXIT_DURATION_MS + 1)
-    await flushMicrotasks()
-
     expect(document.getElementById(BADGE_HOST_ID)).toBeNull()
 
     const lateParagraphElement = document.createElement('p')
@@ -282,16 +273,13 @@ describe('content script lifecycle', () => {
     await import('@/content/main')
     await flushMicrotasks()
 
-    vi.advanceTimersByTime(INLINE_DOCK_AUTO_CLOSE_DELAY_MS + 1)
-    await flushMicrotasks()
-
     expect(getBadgeShell()?.dataset.exitReason).toBe('auto-close')
 
     const closeButton = getBadgeButton('[data-role="badge-close"]')
 
     closeButton?.click()
 
-    expect(getBadgeShell()?.dataset.exitReason).toBe('dismiss')
+    expect(document.getElementById(BADGE_HOST_ID)).toBeNull()
   })
 })
 
