@@ -175,7 +175,10 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
+    await vi.advanceTimersByTimeAsync(INLINE_DOCK_AUTO_CLOSE_DELAY_MS + 1)
     await flushMicrotasks()
+
+    expect(getBadgeShell()?.dataset.exitReason).toBe('auto-close')
 
     const badgeCopyButton = getBadgeButton('[data-role="badge-copy"]')
 
@@ -199,13 +202,10 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
+    await vi.advanceTimersByTimeAsync(INLINE_DOCK_AUTO_CLOSE_DELAY_MS + 1)
     await flushMicrotasks()
 
     expect(document.getElementById(BADGE_HOST_ID)).not.toBeNull()
-
-    vi.advanceTimersByTime(INLINE_DOCK_AUTO_CLOSE_DELAY_MS + 1)
-    await flushMicrotasks()
-
     expect(getBadgeShell()?.dataset.exitReason).toBe('auto-close')
 
     vi.advanceTimersByTime(INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS)
@@ -266,6 +266,32 @@ describe('content script lifecycle', () => {
     await flushMicrotasks()
 
     expect(document.getElementById(BADGE_HOST_ID)).toBeNull()
+  })
+
+  it('lets manual dismiss override an active auto-close trace', async () => {
+    const analyzeDocument = vi.fn(() => createArticleAnalysis())
+    const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
+    const chromeMock = createContentChromeMock()
+
+    mockInlineDockDependencies({
+      analyzeDocument,
+      chromeMock,
+      createTranscriptResultMock,
+    })
+
+    await import('@/content/main')
+    await flushMicrotasks()
+
+    vi.advanceTimersByTime(INLINE_DOCK_AUTO_CLOSE_DELAY_MS + 1)
+    await flushMicrotasks()
+
+    expect(getBadgeShell()?.dataset.exitReason).toBe('auto-close')
+
+    const closeButton = getBadgeButton('[data-role="badge-close"]')
+
+    closeButton?.click()
+
+    expect(getBadgeShell()?.dataset.exitReason).toBe('dismiss')
   })
 })
 

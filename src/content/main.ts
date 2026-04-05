@@ -93,7 +93,7 @@ function scheduleAnalysis(): void {
 }
 
 function handleBadgeDismissed(): void {
-  if (!currentAnalysis || inlineDockState.exitReason) {
+  if (!currentAnalysis || inlineDockState.exitReason === 'dismiss') {
     return
   }
 
