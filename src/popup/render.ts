@@ -24,26 +24,25 @@ function createPopupShell(
 
   popupShellElement.className = 'popup-shell'
   popupShellElement.append(
-    createHeroSection(viewModel),
-    createSupportSection(viewModel),
-    createTranscriptSection(viewModel),
+    createHeaderSection(viewModel),
+    createSummarySection(viewModel),
     createSettingsSection(settings),
   )
 
   return popupShellElement
 }
 
-function createHeroSection(viewModel: PopupViewModel): HTMLElement {
-  const heroSectionElement = document.createElement('section')
-  const heroHeaderElement = document.createElement('div')
+function createHeaderSection(viewModel: PopupViewModel): HTMLElement {
+  const headerSectionElement = document.createElement('section')
+  const headerRowElement = document.createElement('div')
   const eyebrowElement = document.createElement('p')
   const statusPillElement = document.createElement('p')
   const domainElement = document.createElement('p')
   const titleElement = document.createElement('h1')
   const domainText = viewModel.hostname || 'Reading time'
 
-  heroSectionElement.className = 'popup-hero'
-  heroHeaderElement.className = 'hero-header'
+  headerSectionElement.className = 'popup-header'
+  headerRowElement.className = 'header-row'
   eyebrowElement.className = 'eyebrow'
   eyebrowElement.textContent = 'Read Minutes'
   statusPillElement.className = 'status-pill'
@@ -52,31 +51,47 @@ function createHeroSection(viewModel: PopupViewModel): HTMLElement {
   domainElement.textContent = domainText
   titleElement.className = 'title'
   titleElement.textContent = viewModel.pageTitle
-  heroHeaderElement.append(eyebrowElement, statusPillElement)
-  heroSectionElement.append(heroHeaderElement, domainElement, titleElement)
+  headerRowElement.append(eyebrowElement, statusPillElement)
+  headerSectionElement.append(headerRowElement, domainElement, titleElement)
 
-  return heroSectionElement
+  return headerSectionElement
 }
 
-function createSupportSection(viewModel: PopupViewModel): HTMLElement {
-  const hasArticleMetrics = Boolean(viewModel.readingTimeValue && viewModel.wordCountValue)
+function createSummarySection(viewModel: PopupViewModel): HTMLElement {
+  const summarySectionElement = document.createElement('section')
 
-  if (!hasArticleMetrics) {
-    return createEmptyState(viewModel.emptyMessage)
+  summarySectionElement.className = 'popup-summary'
+
+  if (viewModel.readingTimeValue && viewModel.wordCountValue) {
+    summarySectionElement.append(
+      createStatsGrid(viewModel.readingTimeValue, viewModel.wordCountValue),
+    )
+  } else {
+    summarySectionElement.append(createEmptyState(viewModel.emptyMessage))
   }
 
-  const supportSectionElement = document.createElement('section')
+  if (viewModel.showTranscriptActions) {
+    summarySectionElement.append(createTranscriptToolbar(viewModel))
+  } else {
+    summarySectionElement.append(createTranscriptHint())
+  }
+
+  return summarySectionElement
+}
+
+function createStatsGrid(
+  readingTimeValue: string,
+  wordCountValue: string,
+): HTMLElement {
   const statsGridElement = document.createElement('div')
 
-  supportSectionElement.className = 'popup-support'
   statsGridElement.className = 'stats-grid'
   statsGridElement.append(
-    createStatItem('Reading time', viewModel.readingTimeValue ?? ''),
-    createStatItem('Word count', viewModel.wordCountValue ?? ''),
+    createStatItem('Reading time', readingTimeValue),
+    createStatItem('Word count', wordCountValue),
   )
-  supportSectionElement.append(statsGridElement)
 
-  return supportSectionElement
+  return statsGridElement
 }
 
 function createStatItem(label: string, value: string): HTMLElement {
@@ -95,7 +110,7 @@ function createStatItem(label: string, value: string): HTMLElement {
 }
 
 function createEmptyState(message: string | null): HTMLElement {
-  const emptyStateElement = document.createElement('section')
+  const emptyStateElement = document.createElement('div')
   const messageElement = document.createElement('p')
 
   emptyStateElement.className = 'empty-state'
@@ -105,112 +120,79 @@ function createEmptyState(message: string | null): HTMLElement {
   return emptyStateElement
 }
 
-function createTranscriptSection(viewModel: PopupViewModel): HTMLElement {
-  const sectionElement = document.createElement('section')
-  const headingElement = document.createElement('div')
-  const labelElement = document.createElement('p')
-  const headingTextElement = document.createElement('p')
-
-  sectionElement.className = 'transcript-section'
-  labelElement.className = 'section-label'
-  labelElement.textContent = 'Page tools'
-  headingTextElement.className = 'section-heading'
-  headingTextElement.textContent = 'Use the article as clean markdown.'
-  headingElement.className = 'section-copy'
-  headingElement.append(labelElement, headingTextElement)
-  sectionElement.append(headingElement)
-
-  if (viewModel.showTranscriptActions) {
-    sectionElement.append(createTranscriptDock(viewModel))
-  } else {
-    sectionElement.append(createTranscriptEmptyState())
-  }
-
-  return sectionElement
-}
-
-function createTranscriptDock(viewModel: PopupViewModel): HTMLElement {
-  const transcriptDockElement = document.createElement('div')
+function createTranscriptToolbar(viewModel: PopupViewModel): HTMLElement {
+  const toolbarElement = document.createElement('div')
   const copyButtonElement = document.createElement('button')
   const openButtonElement = document.createElement('button')
 
-  transcriptDockElement.className = 'transcript-dock'
+  toolbarElement.className = 'transcript-toolbar'
   copyButtonElement.id = 'copy-markdown'
-  copyButtonElement.className = 'dock-action-button'
+  copyButtonElement.className = 'toolbar-button'
   copyButtonElement.type = 'button'
   copyButtonElement.disabled = viewModel.isTranscriptActionBusy
   copyButtonElement.append(
     createIconElement('copy'),
-    createActionButtonCopy(viewModel.copyButtonLabel, 'Copy page as Markdown for LLMs'),
+    createActionButtonCopy(viewModel.copyButtonLabel),
   )
   openButtonElement.id = 'open-markdown'
-  openButtonElement.className = 'dock-action-button dock-action-button-secondary'
+  openButtonElement.className = 'toolbar-button toolbar-button-secondary'
   openButtonElement.type = 'button'
   openButtonElement.disabled = viewModel.isTranscriptActionBusy
   openButtonElement.append(
     createIconElement('markdown'),
-    createActionButtonCopy(viewModel.openButtonLabel, 'Open this page as plain text'),
+    createActionButtonCopy(viewModel.openButtonLabel),
   )
-  transcriptDockElement.append(copyButtonElement, openButtonElement)
+  toolbarElement.append(copyButtonElement, openButtonElement)
 
   if (viewModel.transcriptActionMessage) {
     const actionStatusElement = document.createElement('p')
 
     actionStatusElement.className = 'action-status'
     actionStatusElement.textContent = viewModel.transcriptActionMessage
-    transcriptDockElement.append(actionStatusElement)
+    toolbarElement.append(actionStatusElement)
   }
 
-  return transcriptDockElement
+  return toolbarElement
 }
 
-function createActionButtonCopy(
-  label: string,
-  description: string,
-): HTMLElement {
-  const copyElement = document.createElement('span')
+function createActionButtonCopy(label: string): HTMLElement {
   const labelElement = document.createElement('span')
-  const descriptionElement = document.createElement('span')
 
-  copyElement.className = 'action-button-copy'
   labelElement.className = 'action-button-label'
   labelElement.textContent = label
-  descriptionElement.className = 'action-button-description'
-  descriptionElement.textContent = description
-  copyElement.append(labelElement, descriptionElement)
 
-  return copyElement
+  return labelElement
 }
 
-function createTranscriptEmptyState(): HTMLElement {
-  const emptyCopyElement = document.createElement('p')
+function createTranscriptHint(): HTMLElement {
+  const hintElement = document.createElement('p')
 
-  emptyCopyElement.className = 'empty-action-copy'
-  emptyCopyElement.textContent = 'Transcript actions appear when an article is detected.'
+  hintElement.className = 'transcript-hint'
+  hintElement.textContent = 'Article tools appear when long-form content is detected.'
 
-  return emptyCopyElement
+  return hintElement
 }
 
 function createSettingsSection(settings: ExtensionSettings): HTMLElement {
   const settingsSectionElement = document.createElement('section')
-  const headingElement = document.createElement('div')
+  const headerElement = document.createElement('div')
   const labelElement = document.createElement('p')
   const headingTextElement = document.createElement('p')
-  const inlineBadgeControlElement = createInlineBadgeControl(settings.showInlineBadge)
-  const wordsPerMinuteFieldElement = createWordsPerMinuteField(settings.wordsPerMinute)
+  const settingsGridElement = document.createElement('div')
 
   settingsSectionElement.className = 'settings-section'
-  headingElement.className = 'section-copy'
+  headerElement.className = 'section-copy'
   labelElement.className = 'section-label'
   labelElement.textContent = 'Preferences'
   headingTextElement.className = 'section-heading'
-  headingTextElement.textContent = 'Tune the inline dock and your reading-speed estimate.'
-  headingElement.append(labelElement, headingTextElement)
-  settingsSectionElement.append(
-    headingElement,
-    inlineBadgeControlElement,
-    wordsPerMinuteFieldElement,
+  headingTextElement.textContent = 'Keep the page tools useful and out of the way.'
+  settingsGridElement.className = 'settings-grid'
+  settingsGridElement.append(
+    createInlineBadgeControl(settings.showInlineBadge),
+    createWordsPerMinuteField(settings.wordsPerMinute),
   )
+  headerElement.append(labelElement, headingTextElement)
+  settingsSectionElement.append(headerElement, settingsGridElement)
 
   return settingsSectionElement
 }
@@ -222,13 +204,13 @@ function createInlineBadgeControl(showInlineBadge: boolean): HTMLElement {
   const controlHelpElement = document.createElement('span')
   const inputElement = document.createElement('input')
 
-  labelElement.className = 'control-row'
+  labelElement.className = 'preference-card preference-toggle'
   labelElement.htmlFor = 'show-inline-badge'
   controlCopyElement.className = 'control-copy'
   controlLabelElement.className = 'control-label'
   controlLabelElement.textContent = 'Show inline dock'
   controlHelpElement.className = 'control-help'
-  controlHelpElement.textContent = 'Keep the floating page tools visible on article pages.'
+  controlHelpElement.textContent = 'Keep the floating tools on article pages.'
   inputElement.id = 'show-inline-badge'
   inputElement.type = 'checkbox'
   inputElement.checked = showInlineBadge
@@ -245,13 +227,13 @@ function createWordsPerMinuteField(wordsPerMinute: number): HTMLElement {
   const controlHelpElement = document.createElement('span')
   const inputElement = document.createElement('input')
 
-  labelElement.className = 'field-group'
+  labelElement.className = 'preference-card preference-field'
   labelElement.htmlFor = 'words-per-minute'
   controlCopyElement.className = 'control-copy'
   controlLabelElement.className = 'control-label'
   controlLabelElement.textContent = 'Words per minute'
   controlHelpElement.className = 'control-help'
-  controlHelpElement.textContent = 'Update the reading-time estimate for this browser.'
+  controlHelpElement.textContent = 'Set the pace for this browser.'
   inputElement.id = 'words-per-minute'
   inputElement.className = 'number-input'
   inputElement.type = 'number'

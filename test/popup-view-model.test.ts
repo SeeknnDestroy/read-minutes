@@ -20,7 +20,7 @@ describe('createPopupViewModel', () => {
     expect(viewModel.readingTimeValue).toBe('5 min read')
     expect(viewModel.wordCountValue).toBe('1,020 words')
     expect(viewModel.copyButtonLabel).toBe('Copy page')
-    expect(viewModel.openButtonLabel).toBe('View as Markdown')
+    expect(viewModel.openButtonLabel).toBe('Open Markdown')
     expect(viewModel.emptyMessage).toBeNull()
   })
 

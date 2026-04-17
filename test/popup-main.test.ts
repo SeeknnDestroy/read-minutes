@@ -33,9 +33,9 @@ describe('popup transcript actions', () => {
     await import('@/popup/main')
     await flushMicrotasks()
 
-    expect(document.querySelector('.popup-hero')?.textContent).toContain('Read Minutes')
+    expect(document.querySelector('.popup-header')?.textContent).toContain('Read Minutes')
     expect(document.querySelector('.stats-grid')?.textContent).toContain('Reading time')
-    expect(document.querySelector('.transcript-dock')).not.toBeNull()
+    expect(document.querySelector('.transcript-toolbar')).not.toBeNull()
     expect(document.querySelector('#copy-markdown')).not.toBeNull()
     expect(document.querySelector('#open-markdown')).not.toBeNull()
     expect(document.querySelector('#toggle-transcript-menu')).toBeNull()
