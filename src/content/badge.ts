@@ -48,6 +48,7 @@ export function renderBadge(
 
 export function removeBadge(): void {
   badgeElements?.hostElement.remove()
+  document.getElementById(BADGE_HOST_ID)?.remove()
   badgeElements = null
 }
 
@@ -63,6 +64,8 @@ function ensureBadgeElements(): BadgeElements {
 }
 
 function createBadgeElements(): BadgeElements {
+  document.getElementById(BADGE_HOST_ID)?.remove()
+
   const badgeHostElement = document.createElement('div')
   const shadowRoot = badgeHostElement.attachShadow({ mode: 'open' })
   const badgeStyleElement = document.createElement('style')
