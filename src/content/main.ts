@@ -13,6 +13,7 @@ import {
   type ArticleAnalysis,
   type PageAnalysis,
 } from '@/shared/types'
+import { getTranscriptUnavailableMessage } from '@/shared/unavailable'
 import {
   dismissBadgeForAnalysis,
   shouldRenderBadge,
@@ -169,7 +170,7 @@ async function handleInlineCopy(): Promise<void> {
     if (transcriptResult.status !== 'ready') {
       updateInlineDockState({
         busyAction: null,
-        message: 'Markdown transcript is unavailable for this page.',
+        message: getTranscriptUnavailableMessage(transcriptResult.reason),
       })
 
       return

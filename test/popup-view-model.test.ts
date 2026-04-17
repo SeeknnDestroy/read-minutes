@@ -24,7 +24,7 @@ describe('createPopupViewModel', () => {
     expect(viewModel.emptyMessage).toBeNull()
   })
 
-  it('shows a clean empty state when no article is available', () => {
+  it('shows a reason-aware empty state when the page is below the article threshold', () => {
     const analysis: PageAnalysis = {
       status: 'no-article',
       hostname: 'example.com',
@@ -39,7 +39,25 @@ describe('createPopupViewModel', () => {
     expect(viewModel.statusLabel).toBe('No article detected')
     expect(viewModel.readingTimeValue).toBeNull()
     expect(viewModel.wordCountValue).toBeNull()
-    expect(viewModel.emptyMessage).toBe('No article-like content found on this page.')
+    expect(viewModel.emptyMessage).toBe('This page looks too short to treat as an article.')
+  })
+
+  it('shows an extraction failure message when parsing fails', () => {
+    const analysis: PageAnalysis = {
+      status: 'no-article',
+      hostname: 'example.com',
+      pageTitle: 'Blocked Article',
+      siteName: 'Example',
+      sourceUrl: 'https://example.com/blocked',
+      reason: 'parse-failed',
+    }
+
+    const viewModel = createPopupViewModel(analysis, defaultSettings)
+
+    expect(viewModel.statusLabel).toBe('No article detected')
+    expect(viewModel.emptyMessage).toBe(
+      'Read Minutes could not extract article content from this page.',
+    )
   })
 
   it('shows busy labels for transcript actions', () => {

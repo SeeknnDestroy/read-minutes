@@ -1,5 +1,6 @@
 import { calculateReadingMinutes, formatReadingTime } from '@/shared/reading-time'
 import type { ExtensionSettings, PageAnalysis, TranscriptPayload } from '@/shared/types'
+import { getNoArticleMessage } from '@/shared/unavailable'
 
 export interface PopupTranscriptActionState {
   busyAction: 'copy' | 'open' | null
@@ -54,7 +55,7 @@ export function createPopupViewModel(
   if (analysis.status === 'no-article') {
     return {
       copyButtonLabel: 'Copy page',
-      emptyMessage: 'No article-like content found on this page.',
+      emptyMessage: getNoArticleMessage(analysis.reason),
       hostname: analysis.hostname,
       isTranscriptActionBusy: false,
       openButtonLabel: 'View as Markdown',
