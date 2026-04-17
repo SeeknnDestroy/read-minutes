@@ -3,6 +3,7 @@ import {
   BADGE_HOST_ID,
   CONTENT_OBSERVER_IDLE_MS,
   INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
+  INLINE_DOCK_DISMISS_EXIT_DURATION_MS,
 } from '@/shared/constants'
 import { analyzeDocument } from '@/shared/analysis'
 import { isGetPageAnalysisMessage, isGetPageTranscriptMessage } from '@/shared/messages'
@@ -62,16 +63,29 @@ async function initializeContentScript(): Promise<void> {
 function runAnalysis(): void {
   const previousSourceUrl = currentAnalysis?.sourceUrl ?? null
 
-  currentAnalysis = analyzeDocument(document, currentSettings)
-  const nextSourceUrl = currentAnalysis?.sourceUrl ?? null
+  const nextAnalysis = analyzeDocument(document, currentSettings)
+  const nextSourceUrl = nextAnalysis.sourceUrl
   const sourceUrlChanged = previousSourceUrl !== nextSourceUrl
+
+  currentAnalysis = nextAnalysis
 
   if (sourceUrlChanged) {
     resetInlineDockState()
+    removeBadge()
+  }
+
+  const shouldKeepVisibleDuringExit = inlineDockState.exitReason !== null
+    && nextAnalysis.status === 'article'
+    && nextAnalysis.sourceUrl === dismissedSourceUrl
+
+  if (shouldKeepVisibleDuringExit) {
+    renderInlineDock(nextAnalysis)
+
+    return
   }
 
   if (shouldRenderBadge(
-    currentAnalysis,
+    nextAnalysis,
     currentSettings.showInlineBadge,
     dismissedSourceUrl,
   )) {
@@ -83,7 +97,7 @@ function runAnalysis(): void {
       synchronizeInlineDockTimers(inlineDockState)
     }
 
-    renderInlineDock(currentAnalysis)
+    renderInlineDock(nextAnalysis)
 
     return
   }
@@ -104,8 +118,11 @@ function handleBadgeDismissed(): void {
   }
 
   dismissedSourceUrl = dismissBadgeForAnalysis(currentAnalysis)
-  resetInlineDockState()
-  removeBadge()
+  updateInlineDockState({
+    busyAction: null,
+    exitReason: 'dismiss',
+    message: null,
+  })
 }
 
 function renderInlineDock(analysis: ArticleAnalysis): void {
@@ -329,9 +346,18 @@ function updateInlineDockState(nextState: Partial<InlineDockState>): void {
     ...inlineDockState,
     ...nextState,
   }
+  const shouldKeepVisibleDuringExit = mergedInlineDockState.exitReason !== null
+    && currentAnalysis?.status === 'article'
+    && currentAnalysis.sourceUrl === dismissedSourceUrl
 
   inlineDockState = mergedInlineDockState
   synchronizeInlineDockTimers(mergedInlineDockState)
+
+  if (currentAnalysis?.status === 'article' && shouldKeepVisibleDuringExit) {
+    renderInlineDock(currentAnalysis)
+
+    return
+  }
 
   if (currentAnalysis && shouldRenderBadge(
     currentAnalysis,
@@ -369,7 +395,7 @@ function synchronizeInlineDockTimers(state: InlineDockState): void {
   if (state.exitReason) {
     inlineDockExitTimer = window.setTimeout(
       finalizeInlineDockExit,
-      INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
+      getInlineDockExitDurationMs(state.exitReason),
     )
 
     return
@@ -403,4 +429,12 @@ function finalizeInlineDockExit(): void {
 
   resetInlineDockState()
   removeBadge()
+}
+
+function getInlineDockExitDurationMs(
+  exitReason: InlineDockState['exitReason'],
+): number {
+  return exitReason === 'dismiss'
+    ? INLINE_DOCK_DISMISS_EXIT_DURATION_MS
+    : INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS
 }

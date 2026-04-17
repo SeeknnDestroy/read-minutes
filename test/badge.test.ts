@@ -30,12 +30,12 @@ describe('renderBadge', () => {
     expect(toastElement?.textContent).toBe('Copying markdown failed.')
   })
 
-  it('renders the perimeter trace exit state for animated dismissal', () => {
+  it('updates the existing shell in place and keeps the countdown rail mounted', () => {
     renderBadge(
       {
         copyButtonLabel: 'Copy page',
-        exitReason: 'auto-close',
-        isActionBusy: true,
+        exitReason: null,
+        isActionBusy: false,
         message: null,
         readingTimeLabel: '8 min read',
       },
@@ -46,13 +46,33 @@ describe('renderBadge', () => {
     )
 
     const badgeHost = document.getElementById(BADGE_HOST_ID)
-    const badgeStyleElement = badgeHost?.shadowRoot?.querySelector('style')
-    const dockShellElement = badgeHost?.shadowRoot?.querySelector<HTMLElement>('.dock-shell')
-    const traceElement = badgeHost?.shadowRoot?.querySelector<SVGElement>('.dock-trace')
+    const originalShellElement = badgeHost?.shadowRoot?.querySelector<HTMLElement>('.dock-shell')
 
-    expect(badgeStyleElement?.textContent).toContain('stroke-dashoffset')
+    renderBadge(
+      {
+        copyButtonLabel: 'Copying...',
+        exitReason: 'auto-close',
+        isActionBusy: true,
+        message: 'Markdown copied for LLM.',
+        readingTimeLabel: '9 min read',
+      },
+      {
+        onCopy: vi.fn(),
+        onDismiss: vi.fn(),
+      },
+    )
+
+    const updatedBadgeHost = document.getElementById(BADGE_HOST_ID)
+    const dockShellElement = updatedBadgeHost?.shadowRoot?.querySelector<HTMLElement>('.dock-shell')
+    const progressRailElement = updatedBadgeHost?.shadowRoot?.querySelector<HTMLElement>('.dock-progress')
+    const toastElement = updatedBadgeHost?.shadowRoot?.querySelector<HTMLElement>('[data-role="badge-toast"]')
+    const copyLabelElement = updatedBadgeHost?.shadowRoot?.querySelector<HTMLElement>('.dock-copy-label')
+
+    expect(dockShellElement).toBe(originalShellElement)
     expect(dockShellElement?.dataset.exitReason).toBe('auto-close')
-    expect(traceElement?.querySelectorAll('.dock-trace-rect')).toHaveLength(1)
+    expect(progressRailElement).not.toBeNull()
+    expect(copyLabelElement?.textContent).toBe('Copying...')
+    expect(toastElement?.textContent).toBe('Markdown copied for LLM.')
   })
 
   it('renders a close button that dismisses the badge', () => {

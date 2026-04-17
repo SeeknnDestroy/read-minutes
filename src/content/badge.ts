@@ -17,47 +17,181 @@ export interface InlineDockViewModel {
   readingTimeLabel: string
 }
 
+interface BadgeElements {
+  closeButtonElement: HTMLButtonElement
+  copyButtonElement: HTMLButtonElement
+  copyButtonLabelElement: HTMLSpanElement
+  copyStackElement: HTMLDivElement
+  currentHandlers: InlineDockHandlers
+  hostElement: HTMLDivElement
+  readingTimeElement: HTMLParagraphElement
+  shellElement: HTMLDivElement
+  toastElement: HTMLParagraphElement | null
+}
+
+const defaultHandlers: InlineDockHandlers = {
+  onCopy: () => undefined,
+  onDismiss: () => undefined,
+}
+
+let badgeElements: BadgeElements | null = null
+
 export function renderBadge(
   viewModel: InlineDockViewModel,
   handlers: InlineDockHandlers,
 ): void {
-  const { mountElement } = getBadgeElements()
-  const dockShellElement = createDockShell(viewModel, handlers)
+  const elements = ensureBadgeElements()
 
-  mountElement.replaceChildren(dockShellElement)
+  elements.currentHandlers = handlers
+  updateBadgeElements(elements, viewModel)
 }
 
 export function removeBadge(): void {
-  const badgeHost = document.getElementById(BADGE_HOST_ID)
-
-  badgeHost?.remove()
+  badgeElements?.hostElement.remove()
+  badgeElements = null
 }
 
-function getBadgeElements(): {
-  mountElement: HTMLDivElement
-} {
-  const existingHost = document.getElementById(BADGE_HOST_ID)
-
-  if (existingHost instanceof HTMLDivElement && existingHost.shadowRoot) {
-    const existingMount = existingHost.shadowRoot.querySelector<HTMLDivElement>('[data-role="dock-mount"]')
-
-    if (existingMount) {
-      return {
-        mountElement: existingMount,
-      }
-    }
-
-    existingHost.remove()
+function ensureBadgeElements(): BadgeElements {
+  if (badgeElements?.hostElement.isConnected) {
+    return badgeElements
   }
 
-  const badgeHost = document.createElement('div')
-  const shadowRoot = badgeHost.attachShadow({ mode: 'open' })
+  badgeElements?.hostElement.remove()
+  badgeElements = createBadgeElements()
+
+  return badgeElements
+}
+
+function createBadgeElements(): BadgeElements {
+  const badgeHostElement = document.createElement('div')
+  const shadowRoot = badgeHostElement.attachShadow({ mode: 'open' })
   const badgeStyleElement = document.createElement('style')
   const mountElement = document.createElement('div')
+  const dockShellElement = document.createElement('div')
+  const progressRailElement = document.createElement('div')
+  const progressFillElement = document.createElement('div')
+  const dockBarElement = document.createElement('div')
+  const contextElement = document.createElement('div')
+  const labelElement = document.createElement('p')
+  const readingTimeElement = document.createElement('p')
+  const copyStackElement = document.createElement('div')
+  const copyButtonElement = document.createElement('button')
+  const copyButtonLabelElement = document.createElement('span')
+  const closeButtonElement = document.createElement('button')
 
-  badgeHost.id = BADGE_HOST_ID
+  badgeHostElement.id = BADGE_HOST_ID
   mountElement.dataset.role = 'dock-mount'
-  badgeStyleElement.textContent = `
+  badgeStyleElement.textContent = createBadgeStyles()
+  dockShellElement.className = 'dock-shell'
+  progressRailElement.className = 'dock-progress'
+  progressFillElement.className = 'dock-progress-fill'
+  dockBarElement.className = 'dock-bar'
+  contextElement.className = 'dock-context'
+  labelElement.className = 'dock-label'
+  labelElement.textContent = 'Read Minutes'
+  readingTimeElement.className = 'dock-reading-time'
+  copyStackElement.className = 'dock-copy-stack'
+  copyButtonElement.className = 'dock-copy'
+  copyButtonElement.dataset.role = 'badge-copy'
+  copyButtonElement.type = 'button'
+  copyButtonLabelElement.className = 'dock-copy-label'
+  copyButtonElement.append(createCopyIconElement(), copyButtonLabelElement)
+  closeButtonElement.className = 'dock-close'
+  closeButtonElement.dataset.role = 'badge-close'
+  closeButtonElement.type = 'button'
+  closeButtonElement.setAttribute('aria-label', 'Close page tools')
+  closeButtonElement.textContent = '×'
+
+  const elements: BadgeElements = {
+    closeButtonElement,
+    copyButtonElement,
+    copyButtonLabelElement,
+    copyStackElement,
+    currentHandlers: defaultHandlers,
+    hostElement: badgeHostElement,
+    readingTimeElement,
+    shellElement: dockShellElement,
+    toastElement: null,
+  }
+
+  copyButtonElement.addEventListener('click', () => {
+    elements.currentHandlers.onCopy()
+  })
+  closeButtonElement.addEventListener('click', () => {
+    elements.currentHandlers.onDismiss()
+  })
+
+  progressRailElement.append(progressFillElement)
+  contextElement.append(labelElement, readingTimeElement)
+  copyStackElement.append(copyButtonElement)
+  dockBarElement.append(contextElement, copyStackElement, closeButtonElement)
+  dockShellElement.append(progressRailElement, dockBarElement)
+  mountElement.append(dockShellElement)
+  shadowRoot.append(badgeStyleElement, mountElement)
+  document.documentElement.append(badgeHostElement)
+
+  return elements
+}
+
+function updateBadgeElements(
+  elements: BadgeElements,
+  viewModel: InlineDockViewModel,
+): void {
+  const {
+    copyButtonElement,
+    copyButtonLabelElement,
+    readingTimeElement,
+    shellElement,
+  } = elements
+
+  readingTimeElement.textContent = viewModel.readingTimeLabel
+  copyButtonElement.disabled = viewModel.isActionBusy
+  copyButtonElement.setAttribute('aria-busy', String(viewModel.isActionBusy))
+  copyButtonLabelElement.textContent = viewModel.copyButtonLabel
+
+  if (viewModel.exitReason) {
+    shellElement.dataset.exitReason = viewModel.exitReason
+  } else {
+    delete shellElement.dataset.exitReason
+  }
+
+  updateToastElement(elements, viewModel.message)
+}
+
+function updateToastElement(
+  elements: BadgeElements,
+  message: string | null,
+): void {
+  if (!message) {
+    elements.toastElement?.remove()
+    elements.toastElement = null
+
+    return
+  }
+
+  const toastElement = elements.toastElement ?? createToastElement()
+
+  toastElement.textContent = message
+
+  if (!toastElement.isConnected) {
+    elements.copyStackElement.append(toastElement)
+  }
+
+  elements.toastElement = toastElement
+}
+
+function createToastElement(): HTMLParagraphElement {
+  const toastElement = document.createElement('p')
+
+  toastElement.className = 'dock-toast'
+  toastElement.dataset.role = 'badge-toast'
+  toastElement.setAttribute('aria-live', 'polite')
+
+  return toastElement
+}
+
+function createBadgeStyles(): string {
+  return `
     :host {
       all: initial;
       position: fixed;
@@ -71,13 +205,13 @@ function getBadgeElements(): {
       box-sizing: border-box;
       display: grid;
       position: relative;
-      width: min(360px, calc(100vw - 24px));
-      padding: 12px;
+      width: min(348px, calc(100vw - 24px));
+      padding: 14px 12px 12px;
       border: 1px solid rgba(255, 241, 222, 0.12);
-      border-radius: 18px;
+      border-radius: 16px;
       overflow: hidden;
       background:
-        radial-gradient(circle at top left, rgba(216, 161, 75, 0.18) 0, rgba(12, 14, 17, 0) 44%),
+        radial-gradient(circle at top left, rgba(216, 161, 75, 0.14) 0, rgba(12, 14, 17, 0) 42%),
         linear-gradient(180deg, rgba(22, 26, 31, 0.96) 0%, rgba(11, 13, 16, 0.98) 100%);
       box-shadow:
         0 20px 40px rgba(0, 0, 0, 0.24),
@@ -93,32 +227,27 @@ function getBadgeElements(): {
       --dock-exit-duration: ${INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS}ms;
     }
 
-    .dock-trace {
+    .dock-progress {
+      position: absolute;
+      top: 0;
+      left: 12px;
+      right: 12px;
+      height: 2px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 241, 222, 0.08);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .dock-progress-fill {
       position: absolute;
       inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      opacity: 0;
-      overflow: visible;
-      z-index: 2;
-    }
-
-    .dock-trace-rect {
-      fill: none;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      vector-effect: non-scaling-stroke;
-    }
-
-    .dock-trace-head {
-      stroke: rgba(255, 255, 255, 1);
-      stroke-width: 2.6;
-      stroke-dasharray: 11 89;
-      stroke-dashoffset: 0;
-      filter:
-        drop-shadow(0 0 9px rgba(255, 255, 255, 1))
-        drop-shadow(0 0 16px rgba(255, 248, 225, 0.66));
+      border-radius: inherit;
+      transform-origin: right center;
+      transform: scaleX(1);
+      background: linear-gradient(90deg, rgba(240, 190, 115, 0.96) 0%, rgba(255, 255, 255, 0.96) 48%, rgba(255, 248, 225, 0.38) 100%);
+      box-shadow: 0 0 10px rgba(255, 248, 225, 0.42);
     }
 
     .dock-bar {
@@ -175,10 +304,10 @@ function getBadgeElements(): {
       align-items: center;
       justify-content: center;
       gap: 9px;
-      min-height: 42px;
-      padding: 0 18px;
+      min-height: 40px;
+      padding: 0 16px;
       border: 1px solid rgba(255, 241, 222, 0.12);
-      border-radius: 14px;
+      border-radius: 12px;
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.03) 100%);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
       cursor: pointer;
@@ -199,8 +328,8 @@ function getBadgeElements(): {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 38px;
-      height: 38px;
+      width: 36px;
+      height: 36px;
       border-radius: 12px;
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.035) 100%);
       cursor: pointer;
@@ -246,8 +375,12 @@ function getBadgeElements(): {
       pointer-events: none;
     }
 
-    .dock-shell[data-exit-reason] .dock-trace {
+    .dock-shell[data-exit-reason] .dock-progress {
       opacity: 1;
+    }
+
+    .dock-shell[data-exit-reason] .dock-progress-fill {
+      animation: dock-progress-countdown var(--dock-exit-duration) linear forwards;
     }
 
     .dock-shell[data-exit-reason="dismiss"] .dock-bar,
@@ -260,19 +393,15 @@ function getBadgeElements(): {
       animation: dock-auto-close-fade var(--dock-exit-duration) linear forwards;
     }
 
-    .dock-shell[data-exit-reason] .dock-trace-head {
-      animation: dock-border-head var(--dock-exit-duration) linear forwards;
-    }
-
-    @keyframes dock-border-head {
+    @keyframes dock-progress-countdown {
       0% {
-        opacity: 1;
-        stroke-dashoffset: 0;
+        opacity: 0.96;
+        transform: scaleX(1);
       }
 
       100% {
-        opacity: 1;
-        stroke-dashoffset: -100;
+        opacity: 0.18;
+        transform: scaleX(0);
       }
     }
 
@@ -299,7 +428,7 @@ function getBadgeElements(): {
         transform: translateY(0) scale(1);
       }
 
-      78% {
+      72% {
         opacity: 1;
         transform: translateY(0) scale(1);
       }
@@ -346,99 +475,6 @@ function getBadgeElements(): {
       }
     }
   `
-  shadowRoot.append(badgeStyleElement, mountElement)
-  document.documentElement.append(badgeHost)
-
-  return {
-    mountElement,
-  }
-}
-
-function createDockShell(
-  viewModel: InlineDockViewModel,
-  handlers: InlineDockHandlers,
-): HTMLElement {
-  const dockShellElement = document.createElement('div')
-  const dockBarElement = document.createElement('div')
-  const traceElement = createTraceElement()
-  const contextElement = document.createElement('div')
-  const labelElement = document.createElement('p')
-  const readingTimeElement = document.createElement('p')
-  const copyStackElement = document.createElement('div')
-  const copyButtonElement = document.createElement('button')
-  const copyButtonLabelElement = document.createElement('span')
-  const closeButtonElement = document.createElement('button')
-
-  dockShellElement.className = 'dock-shell'
-  if (viewModel.exitReason) {
-    dockShellElement.dataset.exitReason = viewModel.exitReason
-  }
-  dockBarElement.className = 'dock-bar'
-  contextElement.className = 'dock-context'
-  labelElement.className = 'dock-label'
-  labelElement.textContent = 'Read Minutes'
-  readingTimeElement.className = 'dock-reading-time'
-  readingTimeElement.textContent = viewModel.readingTimeLabel
-  contextElement.append(labelElement, readingTimeElement)
-  copyStackElement.className = 'dock-copy-stack'
-  copyButtonElement.className = 'dock-copy'
-  copyButtonElement.dataset.role = 'badge-copy'
-  copyButtonElement.type = 'button'
-  copyButtonElement.disabled = viewModel.isActionBusy
-  copyButtonLabelElement.className = 'dock-copy-label'
-  copyButtonLabelElement.textContent = viewModel.copyButtonLabel
-  copyButtonElement.append(createCopyIconElement(), copyButtonLabelElement)
-  copyButtonElement.addEventListener('click', handlers.onCopy)
-  copyStackElement.append(copyButtonElement)
-  closeButtonElement.className = 'dock-close'
-  closeButtonElement.dataset.role = 'badge-close'
-  closeButtonElement.type = 'button'
-  closeButtonElement.setAttribute('aria-label', 'Close page tools')
-  closeButtonElement.textContent = '×'
-  closeButtonElement.addEventListener('click', handlers.onDismiss)
-  dockBarElement.append(contextElement, copyStackElement, closeButtonElement)
-  dockShellElement.append(traceElement, dockBarElement)
-
-  if (viewModel.message) {
-    const toastElement = document.createElement('p')
-
-    toastElement.className = 'dock-toast'
-    toastElement.dataset.role = 'badge-toast'
-    toastElement.setAttribute('aria-live', 'polite')
-    toastElement.textContent = viewModel.message
-    copyStackElement.append(toastElement)
-  }
-
-  return dockShellElement
-}
-
-function createTraceElement(): SVGElement {
-  const traceElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  const headPathElement = document.createElementNS(traceElement.namespaceURI, 'path')
-  const roundedRectPath = [
-    'M 20 2',
-    'H 340',
-    'A 18 18 0 0 1 358 20',
-    'V 58',
-    'A 18 18 0 0 1 340 76',
-    'H 20',
-    'A 18 18 0 0 1 2 58',
-    'V 20',
-    'A 18 18 0 0 1 20 2',
-  ].join(' ')
-
-  traceElement.classList.add('dock-trace')
-  traceElement.setAttribute('viewBox', '0 0 360 78')
-  traceElement.setAttribute('preserveAspectRatio', 'none')
-  traceElement.setAttribute('aria-hidden', 'true')
-
-  headPathElement.setAttribute('d', roundedRectPath)
-  headPathElement.setAttribute('pathLength', '100')
-  headPathElement.classList.add('dock-trace-rect')
-  headPathElement.classList.add('dock-trace-head')
-  traceElement.append(headPathElement)
-
-  return traceElement
 }
 
 function createCopyIconElement(): SVGElement {
