@@ -71,6 +71,54 @@ describe('popup transcript actions', () => {
     expect(document.querySelector('.action-status')?.textContent).toBe('Markdown copied for LLM.')
   })
 
+  it('shows a reason-aware message when markdown is unavailable because the page is too short', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+
+    vi.stubGlobal('chrome', createChromeMock({
+      analysis: createArticleAnalysis(),
+      transcriptResult: {
+        status: 'unavailable',
+        reason: 'below-threshold',
+      },
+    }))
+
+    await import('@/popup/main')
+    await flushMicrotasks()
+
+    const copyButton = document.querySelector<HTMLButtonElement>('#copy-markdown')
+
+    copyButton?.click()
+    await flushMicrotasks()
+
+    expect(document.querySelector('.action-status')?.textContent).toBe(
+      'Markdown is unavailable because this page looks too short to treat as an article.',
+    )
+  })
+
+  it('shows a reason-aware message when markdown extraction fails', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+
+    vi.stubGlobal('chrome', createChromeMock({
+      analysis: createArticleAnalysis(),
+      transcriptResult: {
+        status: 'unavailable',
+        reason: 'parse-failed',
+      },
+    }))
+
+    await import('@/popup/main')
+    await flushMicrotasks()
+
+    const openButton = document.querySelector<HTMLButtonElement>('#open-markdown')
+
+    openButton?.click()
+    await flushMicrotasks()
+
+    expect(document.querySelector('.action-status')?.textContent).toBe(
+      'Markdown is unavailable because Read Minutes could not extract article content from this page.',
+    )
+  })
+
   it('opens transcript view from the side-by-side action row and stores the payload for the new page', async () => {
     document.body.innerHTML = '<div id="root"></div>'
 

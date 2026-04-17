@@ -187,6 +187,41 @@ describe('content script lifecycle', () => {
     expect(getBadgeShell()).not.toBeNull()
   })
 
+  it('shows a reason-aware inline message when markdown is unavailable', async () => {
+    const analyzeDocument = vi.fn(() => createArticleAnalysis())
+    const createTranscriptResultMock = vi.fn(async () => ({
+      status: 'unavailable' as const,
+      reason: 'below-threshold' as const,
+    }))
+    const chromeMock = createContentChromeMock()
+
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: vi.fn(async () => undefined),
+      },
+    })
+
+    mockInlineDockDependencies({
+      analyzeDocument,
+      chromeMock,
+      createTranscriptResultMock,
+    })
+
+    await import('@/content/main')
+    await flushMicrotasks()
+
+    const badgeCopyButton = getBadgeButton('[data-role="badge-copy"]')
+
+    badgeCopyButton?.click()
+    await vi.advanceTimersByTimeAsync(0)
+    await flushMicrotasks()
+
+    expect(getBadgeToast()?.textContent).toBe(
+      'Markdown is unavailable because this page looks too short to treat as an article.',
+    )
+  })
+
   it('starts the inline dock auto-close trace immediately and removes the badge after one five-second loop', async () => {
     const analyzeDocument = vi.fn(() => createArticleAnalysis())
     const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
@@ -444,6 +479,12 @@ function getBadgeShell(): HTMLElement | null {
   const badgeHost = document.getElementById(BADGE_HOST_ID)
 
   return badgeHost?.shadowRoot?.querySelector<HTMLElement>('.dock-shell') ?? null
+}
+
+function getBadgeToast(): HTMLElement | null {
+  const badgeHost = document.getElementById(BADGE_HOST_ID)
+
+  return badgeHost?.shadowRoot?.querySelector<HTMLElement>('[data-role="badge-toast"]') ?? null
 }
 
 async function flushMicrotasks(): Promise<void> {

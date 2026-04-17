@@ -13,6 +13,7 @@ import {
   type PageAnalysis,
   type TranscriptResult,
 } from '@/shared/types'
+import { getTranscriptUnavailableMessage } from '@/shared/unavailable'
 import { renderPopupContent, renderTranscriptViewContent } from './render'
 import {
   createPopupViewModel,
@@ -146,7 +147,7 @@ async function handleCopyMarkdown(): Promise<void> {
     if (transcriptResult.status !== 'ready') {
       updateTranscriptActionState({
         busyAction: null,
-        message: 'Markdown transcript is unavailable for this page.',
+        message: getTranscriptUnavailableMessage(transcriptResult.reason),
       })
 
       return
@@ -177,7 +178,7 @@ async function handleOpenMarkdown(): Promise<void> {
     if (transcriptResult.status !== 'ready') {
       updateTranscriptActionState({
         busyAction: null,
-        message: 'Markdown transcript is unavailable for this page.',
+        message: getTranscriptUnavailableMessage(transcriptResult.reason),
       })
 
       return
