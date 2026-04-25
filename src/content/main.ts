@@ -1,9 +1,11 @@
 import {
   ANALYSIS_DEBOUNCE_MS,
+  ANALYSIS_IDLE_TIMEOUT_MS,
   BADGE_HOST_ID,
   CONTENT_OBSERVER_IDLE_MS,
   INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
   INLINE_DOCK_DISMISS_EXIT_DURATION_MS,
+  NAVIGATION_ANALYSIS_SETTLE_MS,
 } from '@/shared/constants'
 import { isGetPageAnalysisMessage, isGetPageTranscriptMessage } from '@/shared/messages'
 import { mergeSettingsFromStorageChange, readSettings } from '@/shared/settings'
@@ -28,11 +30,29 @@ const IGNORED_MUTATION_TAG_NAMES = new Set([
   'style',
   'template',
 ])
+const MEANINGFUL_MUTATION_TAG_NAMES = new Set([
+  'article',
+  'blockquote',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'li',
+  'main',
+  'p',
+  'pre',
+  'section',
+])
+const MEANINGFUL_MUTATION_SELECTOR = [...MEANINGFUL_MUTATION_TAG_NAMES].join(',')
 const INLINE_DOCK_MESSAGE_DURATION_MS = 2400
 
 let currentAnalysis: PageAnalysis | null = null
 let currentSettings = defaultSettings
 let analysisTimer: number | undefined
+let analysisIdleCallbackId: number | undefined
+let analysisEarliestRunAtMs = 0
 let contentObserverIdleTimer: number | undefined
 let inlineDockMessageTimer: number | undefined
 let inlineDockExitTimer: number | undefined
@@ -56,7 +76,8 @@ async function initializeContentScript(): Promise<void> {
   installNavigationListeners()
 
   if (currentSettings.showInlineBadge) {
-    runAnalysis()
+    deferAnalysisForNavigation()
+    scheduleAnalysis()
     armContentMutationObserver()
   }
 }
@@ -112,10 +133,48 @@ async function runAnalysis(): Promise<PageAnalysis> {
 
 function scheduleAnalysis(): void {
   synchronizeLocationState()
-  window.clearTimeout(analysisTimer)
+  clearScheduledAnalysis()
   analysisTimer = window.setTimeout(() => {
-    void runAnalysis()
-  }, ANALYSIS_DEBOUNCE_MS)
+    analysisTimer = undefined
+    runAnalysisWhenIdle()
+  }, getAnalysisDelayMs())
+}
+
+function runAnalysisWhenIdle(): void {
+  if ('requestIdleCallback' in window) {
+    analysisIdleCallbackId = window.requestIdleCallback(() => {
+      analysisIdleCallbackId = undefined
+      void runAnalysis()
+    }, {
+      timeout: ANALYSIS_IDLE_TIMEOUT_MS,
+    })
+
+    return
+  }
+
+  void runAnalysis()
+}
+
+function clearScheduledAnalysis(): void {
+  window.clearTimeout(analysisTimer)
+  analysisTimer = undefined
+
+  if (analysisIdleCallbackId === undefined || !('cancelIdleCallback' in window)) {
+    return
+  }
+
+  window.cancelIdleCallback(analysisIdleCallbackId)
+  analysisIdleCallbackId = undefined
+}
+
+function getAnalysisDelayMs(): number {
+  const settleDelayMs = Math.max(0, analysisEarliestRunAtMs - performance.now())
+
+  return Math.max(ANALYSIS_DEBOUNCE_MS, settleDelayMs)
+}
+
+function deferAnalysisForNavigation(): void {
+  analysisEarliestRunAtMs = performance.now() + NAVIGATION_ANALYSIS_SETTLE_MS
 }
 
 function handleBadgeDismissed(): void {
@@ -249,6 +308,7 @@ function installNavigationListeners(): void {
       return
     }
 
+    deferAnalysisForNavigation()
     armContentMutationObserver()
     scheduleAnalysis()
   }
@@ -319,13 +379,22 @@ function isMeaningfulNode(node: Node): boolean {
     return false
   }
 
-  return hasMeaningfulText(node.textContent)
+  return MEANINGFUL_MUTATION_TAG_NAMES.has(tagName)
+    || hasDirectMeaningfulText(node)
+    || Boolean(node.querySelector(MEANINGFUL_MUTATION_SELECTOR))
 }
 
 function hasMeaningfulText(value: string | null): boolean {
   const normalizedText = value?.trim() ?? ''
 
   return normalizedText.length > 0
+}
+
+function hasDirectMeaningfulText(element: Element): boolean {
+  return [...element.childNodes].some((childNode) => (
+    childNode.nodeType === Node.TEXT_NODE
+      && hasMeaningfulText(childNode.textContent)
+  ))
 }
 
 function isBadgeElement(element: Element): boolean {
@@ -337,7 +406,16 @@ function isBadgeElement(element: Element): boolean {
 
 function scheduleContentObserverIdleStop(): void {
   window.clearTimeout(contentObserverIdleTimer)
-  contentObserverIdleTimer = window.setTimeout(disconnectContentMutationObserver, CONTENT_OBSERVER_IDLE_MS)
+  contentObserverIdleTimer = window.setTimeout(
+    disconnectContentMutationObserver,
+    getContentObserverIdleDelayMs(),
+  )
+}
+
+function getContentObserverIdleDelayMs(): number {
+  const analysisSettleDelayMs = Math.max(0, analysisEarliestRunAtMs - performance.now())
+
+  return Math.max(CONTENT_OBSERVER_IDLE_MS, analysisSettleDelayMs + CONTENT_OBSERVER_IDLE_MS)
 }
 
 function disconnectContentMutationObserver(): void {

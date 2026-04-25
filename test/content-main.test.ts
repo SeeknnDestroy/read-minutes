@@ -4,6 +4,7 @@ import {
   CONTENT_OBSERVER_IDLE_MS,
   INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
   INLINE_DOCK_DISMISS_EXIT_DURATION_MS,
+  NAVIGATION_ANALYSIS_SETTLE_MS,
 } from '@/shared/constants'
 import { defaultSettings, type ExtensionSettings, type PageAnalysis, type TranscriptPayload, type TranscriptResult } from '@/shared/types'
 import { createGetPageAnalysisMessage, createGetPageTranscriptMessage } from '@/shared/messages'
@@ -44,7 +45,7 @@ describe('content script lifecycle', () => {
     expect(analyzeDocument).not.toHaveBeenCalled()
   })
 
-  it('analyzes the page during startup when the inline badge is enabled', async () => {
+  it('defers startup analysis when the inline badge is enabled', async () => {
     const analyzeDocument = vi.fn(() => createNoArticleAnalysis())
 
     mockContentScriptDependencies(analyzeDocument, {
@@ -53,6 +54,10 @@ describe('content script lifecycle', () => {
 
     await import('@/content/main')
     await flushMicrotasks()
+
+    expect(analyzeDocument).not.toHaveBeenCalled()
+
+    await advanceScheduledAnalysis(NAVIGATION_ANALYSIS_SETTLE_MS + 1)
 
     expect(analyzeDocument).toHaveBeenCalledTimes(1)
   })
@@ -88,7 +93,6 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
     await settleInlineBadgeStartup(analyzeDocument)
 
     const badgeHost = document.createElement('div')
@@ -112,7 +116,6 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
     await settleInlineBadgeStartup(analyzeDocument)
 
     const styleElement = document.createElement('style')
@@ -146,10 +149,40 @@ describe('content script lifecycle', () => {
     window.history.pushState({}, '', '/next')
 
     await flushMicrotasks()
+    await advanceScheduledAnalysis(NAVIGATION_ANALYSIS_SETTLE_MS + 1)
+
+    expect(analyzeDocument).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not read full textContent from added subtrees before scheduling analysis', async () => {
+    const analyzeDocument = vi.fn(() => createNoArticleAnalysis())
+    const textContentGetter = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent')?.get
+
+    expect(textContentGetter).toBeDefined()
+
+    const textContentSpy = vi.spyOn(Node.prototype, 'textContent', 'get')
+
+    mockContentScriptDependencies(analyzeDocument, {
+      showInlineBadge: true,
+    })
+
+    await import('@/content/main')
+    await settleInlineBadgeStartup(analyzeDocument)
+
+    const wrapperElement = document.createElement('div')
+
+    wrapperElement.innerHTML = `<article><p>${'Late loaded article content '.repeat(20)}</p></article>`
+    textContentSpy.mockClear()
+    document.body.append(wrapperElement)
+
+    await flushMicrotasks()
     vi.advanceTimersByTime(ANALYSIS_DEBOUNCE_MS + 1)
     await flushMicrotasks()
 
     expect(analyzeDocument).toHaveBeenCalledTimes(1)
+    expect(textContentSpy).not.toHaveBeenCalled()
+
+    textContentSpy.mockRestore()
   })
 
   it('responds to transcript messages with local transcript results', async () => {
@@ -217,7 +250,7 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
+    await settleInlineBadgeStartup(analyzeDocument)
 
     expect(getBadgeShell()?.dataset.exitReason).toBe('auto-close')
 
@@ -253,7 +286,7 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
+    await settleInlineBadgeStartup(analyzeDocument)
 
     const badgeCopyButton = getBadgeButton('[data-role="badge-copy"]')
 
@@ -278,7 +311,7 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
+    await settleInlineBadgeStartup(analyzeDocument)
 
     expect(document.getElementById(BADGE_HOST_ID)).not.toBeNull()
     expect(getBadgeShell()?.dataset.exitReason).toBe('auto-close')
@@ -301,7 +334,7 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
+    await settleInlineBadgeStartup(analyzeDocument)
 
     expect(getBadgeButton('[data-role="badge-copy"]')).not.toBeNull()
     expect(getBadgeButton('[data-role="badge-open"]')).toBeNull()
@@ -319,7 +352,7 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
+    await settleInlineBadgeStartup(analyzeDocument)
 
     const closeButton = getBadgeButton('[data-role="badge-close"]')
 
@@ -355,7 +388,7 @@ describe('content script lifecycle', () => {
     })
 
     await import('@/content/main')
-    await flushMicrotasks()
+    await settleInlineBadgeStartup(analyzeDocument)
 
     expect(getBadgeShell()?.dataset.exitReason).toBe('auto-close')
 
@@ -558,6 +591,11 @@ async function flushMicrotasks(): Promise<void> {
   await vi.dynamicImportSettled()
 }
 
+async function advanceScheduledAnalysis(delayMs: number): Promise<void> {
+  vi.advanceTimersByTime(delayMs)
+  await flushMicrotasks()
+}
+
 async function waitForAnalysisCall(
   analyzeDocument: ReturnType<typeof vi.fn>,
   callCount: number,
@@ -570,8 +608,7 @@ async function waitForAnalysisCall(
 async function settleInlineBadgeStartup(
   analyzeDocument: ReturnType<typeof vi.fn>,
 ): Promise<void> {
+  await advanceScheduledAnalysis(NAVIGATION_ANALYSIS_SETTLE_MS + 1)
   await waitForAnalysisCall(analyzeDocument, 1)
-  vi.advanceTimersByTime(ANALYSIS_DEBOUNCE_MS + 1)
-  await flushMicrotasks()
   analyzeDocument.mockClear()
 }
