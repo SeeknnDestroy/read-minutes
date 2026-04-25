@@ -34,6 +34,26 @@ describe('settings persistence', () => {
     })
   })
 
+  it('persists enabling the badge visibility toggle', async () => {
+    const storageArea = createStorageAreaMock({
+      wordsPerMinute: defaultSettings.wordsPerMinute,
+      showInlineBadge: false,
+    })
+
+    const settings = await saveSettings(
+      {
+        showInlineBadge: true,
+      },
+      storageArea,
+    )
+
+    expect(settings.showInlineBadge).toBe(true)
+    expect(storageArea.snapshot()).toEqual({
+      wordsPerMinute: defaultSettings.wordsPerMinute,
+      showInlineBadge: true,
+    })
+  })
+
   it('preserves independent concurrent updates', async () => {
     const storageArea = createStorageAreaWithDelayedWrites({
       wordsPerMinute: defaultSettings.wordsPerMinute,
