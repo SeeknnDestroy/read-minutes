@@ -1,7 +1,6 @@
-import type { DefuddleResponse } from 'defuddle'
-import { MINIMUM_ARTICLE_WORDS } from './constants'
+import { extractReadableContent } from './defuddle-extraction'
 import { createExtractionDocumentSnapshot, createPageMetadata } from './page-context'
-import { countWords, normalizeWhitespace } from './reading-time'
+import { normalizeWhitespace } from './reading-time'
 import type { TranscriptPayload, TranscriptResult } from './types'
 
 export async function createTranscriptResult(document: Document): Promise<TranscriptResult> {
@@ -11,22 +10,22 @@ export async function createTranscriptResult(document: Document): Promise<Transc
     const snapshotDocument = createExtractionDocumentSnapshot(document)
     const defuddleModule = await import('defuddle/full')
     const Defuddle = defuddleModule.default
-    const parser = new Defuddle(snapshotDocument, {
-      markdown: true,
-      url: pageMetadata.sourceUrl,
-      useAsync: false,
-    })
-    const result = parser.parse()
-    const wordCount = getWordCount(result)
-    const hasEnoughWords = wordCount >= MINIMUM_ARTICLE_WORDS
+    const extractionOutcome = extractReadableContent(
+      Defuddle,
+      snapshotDocument,
+      pageMetadata.sourceUrl,
+      normalizeMarkdown,
+      { markdown: true },
+    )
 
-    if (!hasEnoughWords) {
+    if (extractionOutcome.status !== 'ready') {
       return {
         status: 'unavailable',
-        reason: 'below-threshold',
+        reason: extractionOutcome.status,
       }
     }
 
+    const { result, wordCount } = extractionOutcome.extraction
     const markdown = normalizeMarkdown(result.content)
     const hasMarkdown = markdown.length > 0
 
@@ -89,19 +88,6 @@ export function createTranscriptExportText(payload: TranscriptPayload): string {
   const metadataLines = populatedEntries.map(([label, value]) => `${label}: ${formatMetadataValue(value)}`)
 
   return `---\n${metadataLines.join('\n')}\n---\n\n${payload.markdown}`
-}
-
-function getWordCount(result: DefuddleResponse): number {
-  const extractedWordCount = Math.round(result.wordCount)
-  const hasWordCount = Number.isFinite(extractedWordCount) && extractedWordCount > 0
-
-  if (hasWordCount) {
-    return extractedWordCount
-  }
-
-  const extractedText = normalizeMarkdown(result.content)
-
-  return countWords(extractedText)
 }
 
 function normalizeMarkdown(markdown: string): string {
