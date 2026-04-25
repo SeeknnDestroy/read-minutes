@@ -3,9 +3,7 @@ import { normalizeWhitespace } from './reading-time'
 import type { AnalysisMetadata } from './types'
 
 export function createExtractionDocumentSnapshot(document: Document): Document {
-  const html = document.documentElement.outerHTML
-  const parser = new DOMParser()
-  const snapshot = parser.parseFromString(`<!doctype html>${html}`, 'text/html')
+  const snapshot = document.cloneNode(true) as Document
   const badgeHost = snapshot.getElementById(BADGE_HOST_ID)
 
   badgeHost?.remove()
