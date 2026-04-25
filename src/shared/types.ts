@@ -62,5 +62,5 @@ export type TranscriptResult = TranscriptReadyResult | TranscriptUnavailableResu
 
 export const defaultSettings: ExtensionSettings = {
   wordsPerMinute: DEFAULT_WORDS_PER_MINUTE,
-  showInlineBadge: true,
+  showInlineBadge: false,
 }

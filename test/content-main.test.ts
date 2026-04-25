@@ -5,8 +5,11 @@ import {
   INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
   INLINE_DOCK_DISMISS_EXIT_DURATION_MS,
 } from '@/shared/constants'
-import { defaultSettings, type PageAnalysis, type TranscriptPayload, type TranscriptResult } from '@/shared/types'
-import { createGetPageTranscriptMessage } from '@/shared/messages'
+import { defaultSettings, type ExtensionSettings, type PageAnalysis, type TranscriptPayload, type TranscriptResult } from '@/shared/types'
+import { createGetPageAnalysisMessage, createGetPageTranscriptMessage } from '@/shared/messages'
+
+const originalPushState = window.history.pushState
+const originalReplaceState = window.history.replaceState
 
 describe('content script lifecycle', () => {
   beforeEach(() => {
@@ -23,15 +26,30 @@ describe('content script lifecycle', () => {
     vi.doUnmock('@/shared/settings')
     vi.doUnmock('@/shared/transcript')
     vi.doUnmock('@/content/badge')
+    window.history.pushState = originalPushState
+    window.history.replaceState = originalReplaceState
     document.body.innerHTML = ''
     document.title = ''
     window.history.replaceState(null, '', '/')
   })
 
-  it('analyzes the page once during startup after settings load', async () => {
+  it('does not analyze the page during startup when the inline badge is disabled', async () => {
     const analyzeDocument = vi.fn(() => createNoArticleAnalysis())
 
     mockContentScriptDependencies(analyzeDocument)
+
+    await import('@/content/main')
+    await flushMicrotasks()
+
+    expect(analyzeDocument).not.toHaveBeenCalled()
+  })
+
+  it('analyzes the page during startup when the inline badge is enabled', async () => {
+    const analyzeDocument = vi.fn(() => createNoArticleAnalysis())
+
+    mockContentScriptDependencies(analyzeDocument, {
+      showInlineBadge: true,
+    })
 
     await import('@/content/main')
     await flushMicrotasks()
@@ -39,15 +57,39 @@ describe('content script lifecycle', () => {
     expect(analyzeDocument).toHaveBeenCalledTimes(1)
   })
 
-  it('ignores badge-host mutations when scheduling analysis', async () => {
-    const analyzeDocument = vi.fn(() => createNoArticleAnalysis())
+  it('runs analysis on demand when the popup asks for the current page', async () => {
+    const analysis = createArticleAnalysis()
+    const analyzeDocument = vi.fn(() => analysis)
+    const chromeMock = createContentChromeMock()
 
-    mockContentScriptDependencies(analyzeDocument)
+    mockContentScriptDependencies(analyzeDocument, {}, chromeMock)
 
     await import('@/content/main')
     await flushMicrotasks()
 
-    analyzeDocument.mockClear()
+    const addListener = chromeMock.runtime.onMessage.addListener as ReturnType<typeof vi.fn>
+    const messageHandler = addListener.mock.calls[0]?.[0]
+    const sendResponse = vi.fn()
+
+    const listenerResult = messageHandler(createGetPageAnalysisMessage(), {}, sendResponse)
+
+    expect(listenerResult).toBe(true)
+    await flushMicrotasks()
+
+    expect(analyzeDocument).toHaveBeenCalledTimes(1)
+    expect(sendResponse).toHaveBeenCalledWith(analysis)
+  })
+
+  it('ignores badge-host mutations when scheduling analysis', async () => {
+    const analyzeDocument = vi.fn(() => createNoArticleAnalysis())
+
+    mockContentScriptDependencies(analyzeDocument, {
+      showInlineBadge: true,
+    })
+
+    await import('@/content/main')
+    await flushMicrotasks()
+    await settleInlineBadgeStartup(analyzeDocument)
 
     const badgeHost = document.createElement('div')
 
@@ -65,12 +107,13 @@ describe('content script lifecycle', () => {
   it('ignores irrelevant DOM churn but reacts to article content and SPA navigation', async () => {
     const analyzeDocument = vi.fn(() => createNoArticleAnalysis())
 
-    mockContentScriptDependencies(analyzeDocument)
+    mockContentScriptDependencies(analyzeDocument, {
+      showInlineBadge: true,
+    })
 
     await import('@/content/main')
     await flushMicrotasks()
-
-    analyzeDocument.mockClear()
+    await settleInlineBadgeStartup(analyzeDocument)
 
     const styleElement = document.createElement('style')
 
@@ -331,8 +374,10 @@ describe('content script lifecycle', () => {
 
 function mockContentScriptDependencies(
   analyzeDocument: ReturnType<typeof vi.fn>,
+  settings: Partial<ExtensionSettings> = {},
+  chromeMock = createContentChromeMock(),
 ): void {
-  vi.stubGlobal('chrome', createContentChromeMock())
+  vi.stubGlobal('chrome', chromeMock)
   vi.doMock('@/shared/analysis', () => ({
     analyzeDocument,
   }))
@@ -341,7 +386,10 @@ function mockContentScriptDependencies(
 
     return {
       ...actualSettingsModule,
-      readSettings: vi.fn(async () => defaultSettings),
+      readSettings: vi.fn(async () => ({
+        ...defaultSettings,
+        ...settings,
+      })),
     }
   })
   vi.doMock('@/content/badge', () => ({
@@ -368,7 +416,10 @@ function mockInlineDockDependencies({
 
     return {
       ...actualSettingsModule,
-      readSettings: vi.fn(async () => defaultSettings),
+      readSettings: vi.fn(async () => ({
+        ...defaultSettings,
+        showInlineBadge: true,
+      })),
     }
   })
   vi.doMock('@/shared/transcript', () => ({
@@ -505,4 +556,22 @@ async function flushMicrotasks(): Promise<void> {
   await Promise.resolve()
   await Promise.resolve()
   await vi.dynamicImportSettled()
+}
+
+async function waitForAnalysisCall(
+  analyzeDocument: ReturnType<typeof vi.fn>,
+  callCount: number,
+): Promise<void> {
+  await vi.waitFor(() => {
+    expect(analyzeDocument).toHaveBeenCalledTimes(callCount)
+  })
+}
+
+async function settleInlineBadgeStartup(
+  analyzeDocument: ReturnType<typeof vi.fn>,
+): Promise<void> {
+  await waitForAnalysisCall(analyzeDocument, 1)
+  vi.advanceTimersByTime(ANALYSIS_DEBOUNCE_MS + 1)
+  await flushMicrotasks()
+  analyzeDocument.mockClear()
 }

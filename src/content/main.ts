@@ -5,10 +5,8 @@ import {
   INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
   INLINE_DOCK_DISMISS_EXIT_DURATION_MS,
 } from '@/shared/constants'
-import { analyzeDocument } from '@/shared/analysis'
 import { isGetPageAnalysisMessage, isGetPageTranscriptMessage } from '@/shared/messages'
 import { mergeSettingsFromStorageChange, readSettings } from '@/shared/settings'
-import { createTranscriptResult } from '@/shared/transcript'
 import {
   defaultSettings,
   type ArticleAnalysis,
@@ -53,15 +51,19 @@ void initializeContentScript()
 
 async function initializeContentScript(): Promise<void> {
   currentSettings = await readSettings()
-  runAnalysis()
   installMessageListener()
   installStorageListener()
   installNavigationListeners()
-  armContentMutationObserver()
+
+  if (currentSettings.showInlineBadge) {
+    runAnalysis()
+    armContentMutationObserver()
+  }
 }
 
-function runAnalysis(): void {
+async function runAnalysis(): Promise<PageAnalysis> {
   const previousSourceUrl = currentAnalysis?.sourceUrl ?? null
+  const { analyzeDocument } = await import('@/shared/analysis')
 
   const nextAnalysis = analyzeDocument(document, currentSettings)
   const nextSourceUrl = nextAnalysis.sourceUrl
@@ -81,7 +83,7 @@ function runAnalysis(): void {
   if (shouldKeepVisibleDuringExit) {
     renderInlineDock(nextAnalysis)
 
-    return
+    return nextAnalysis
   }
 
   if (shouldRenderBadge(
@@ -99,17 +101,21 @@ function runAnalysis(): void {
 
     renderInlineDock(nextAnalysis)
 
-    return
+    return nextAnalysis
   }
 
   resetInlineDockState()
   removeBadge()
+
+  return nextAnalysis
 }
 
 function scheduleAnalysis(): void {
   synchronizeLocationState()
   window.clearTimeout(analysisTimer)
-  analysisTimer = window.setTimeout(runAnalysis, ANALYSIS_DEBOUNCE_MS)
+  analysisTimer = window.setTimeout(() => {
+    void runAnalysis()
+  }, ANALYSIS_DEBOUNCE_MS)
 }
 
 function handleBadgeDismissed(): void {
@@ -152,9 +158,9 @@ function handleInlineCopyRequested(): void {
 function installMessageListener(): void {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (isGetPageAnalysisMessage(message)) {
-      sendResponse(currentAnalysis)
+      void runAnalysis().then(sendResponse)
 
-      return
+      return true
     }
 
     if (isGetPageTranscriptMessage(message)) {
@@ -170,6 +176,7 @@ function installMessageListener(): void {
 async function respondWithTranscript(
   sendResponse: (response?: unknown) => void,
 ): Promise<void> {
+  const { createTranscriptResult } = await import('@/shared/transcript')
   const transcriptResult = await createTranscriptResult(document)
 
   sendResponse(transcriptResult)
@@ -182,6 +189,7 @@ async function handleInlineCopy(): Promise<void> {
   })
 
   try {
+    const { createTranscriptResult } = await import('@/shared/transcript')
     const transcriptResult = await createTranscriptResult(document)
 
     if (transcriptResult.status !== 'ready') {
@@ -212,13 +220,35 @@ function installStorageListener(): void {
       return
     }
 
+    const previousShowInlineBadge = currentSettings.showInlineBadge
+
     currentSettings = mergeSettingsFromStorageChange(currentSettings, changes)
+
+    if (!currentSettings.showInlineBadge) {
+      disconnectContentMutationObserver()
+      resetInlineDockState()
+      removeBadge()
+
+      return
+    }
+
     runAnalysis()
+
+    if (!previousShowInlineBadge) {
+      armContentMutationObserver()
+    }
   })
 }
 
 function installNavigationListeners(): void {
   const rerunAnalysis = () => {
+    if (!currentSettings.showInlineBadge) {
+      synchronizeLocationState()
+      currentAnalysis = null
+
+      return
+    }
+
     armContentMutationObserver()
     scheduleAnalysis()
   }
@@ -226,7 +256,11 @@ function installNavigationListeners(): void {
   patchHistoryMethod('pushState', rerunAnalysis)
   patchHistoryMethod('replaceState', rerunAnalysis)
   window.addEventListener('popstate', rerunAnalysis)
-  window.addEventListener('pageshow', rerunAnalysis)
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      rerunAnalysis()
+    }
+  })
 }
 
 function armContentMutationObserver(): void {
