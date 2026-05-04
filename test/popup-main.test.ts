@@ -1,7 +1,9 @@
+import { TRANSCRIPT_ACTION_MINIMUM_BUSY_MS } from '@/shared/constants'
 import type { PageAnalysis, TranscriptPayload, TranscriptResult } from '@/shared/types'
 
 describe('popup transcript actions', () => {
   afterEach(() => {
+    vi.useRealTimers()
     vi.resetModules()
     vi.unstubAllGlobals()
     document.body.innerHTML = ''
@@ -43,6 +45,7 @@ describe('popup transcript actions', () => {
   })
 
   it('copies transcript markdown for LLM use', async () => {
+    vi.useFakeTimers()
     document.body.innerHTML = '<div id="root"></div>'
 
     const clipboardWriteText = vi.fn(async () => undefined)
@@ -68,6 +71,14 @@ describe('popup transcript actions', () => {
     await flushMicrotasks()
 
     expect(clipboardWriteText).toHaveBeenCalledWith(createTranscriptPayload().exportText)
+    expect(document.querySelector<HTMLButtonElement>('#copy-markdown')?.disabled).toBe(true)
+    expect(document.querySelector('#copy-markdown')?.textContent).toContain('Copying...')
+    expect(document.querySelector('.action-status')).toBeNull()
+
+    await vi.advanceTimersByTimeAsync(TRANSCRIPT_ACTION_MINIMUM_BUSY_MS)
+    await flushMicrotasks()
+
+    expect(document.querySelector<HTMLButtonElement>('#copy-markdown')?.disabled).toBe(false)
     expect(document.querySelector('.action-status')?.textContent).toBe('Markdown copied for LLM.')
   })
 

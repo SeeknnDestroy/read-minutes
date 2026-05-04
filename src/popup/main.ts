@@ -1,4 +1,5 @@
 import './styles.css'
+import { waitForMinimumTranscriptActionBusyTime } from '@/shared/action-feedback'
 import { createGetPageAnalysisMessage, createGetPageTranscriptMessage } from '@/shared/messages'
 import { saveSettings, readSettings } from '@/shared/settings'
 import {
@@ -136,6 +137,8 @@ async function loadActiveTabAnalysis(): Promise<PageAnalysis | null> {
 }
 
 async function handleCopyMarkdown(): Promise<void> {
+  const actionStartedAtMs = performance.now()
+
   updateTranscriptActionState({
     busyAction: 'copy',
     message: null,
@@ -154,6 +157,7 @@ async function handleCopyMarkdown(): Promise<void> {
     }
 
     await navigator.clipboard.writeText(transcriptResult.payload.exportText)
+    await waitForMinimumTranscriptActionBusyTime(actionStartedAtMs)
     updateTranscriptActionState({
       busyAction: null,
       message: 'Markdown copied for LLM.',

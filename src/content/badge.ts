@@ -321,10 +321,12 @@ function createBadgeStyles(): string {
     }
 
     .dock-copy-label {
+      min-width: 72px;
       color: #fff7ec;
       font-size: 14px;
       font-weight: 700;
       letter-spacing: -0.01em;
+      text-align: left;
     }
 
     .dock-close {

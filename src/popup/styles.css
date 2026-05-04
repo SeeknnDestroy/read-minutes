@@ -221,9 +221,11 @@ input[type="checkbox"]:focus-visible {
 }
 
 .action-button-label {
+  min-width: 78px;
   color: #fff7ec;
   font-size: 13px;
   font-weight: 700;
+  text-align: left;
 }
 
 .section-copy {

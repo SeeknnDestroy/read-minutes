@@ -5,6 +5,7 @@ import {
   INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
   INLINE_DOCK_DISMISS_EXIT_DURATION_MS,
   NAVIGATION_ANALYSIS_SETTLE_MS,
+  TRANSCRIPT_ACTION_MINIMUM_BUSY_MS,
 } from '@/shared/constants'
 import { defaultSettings, type ExtensionSettings, type PageAnalysis, type TranscriptPayload, type TranscriptResult } from '@/shared/types'
 import { createGetPageAnalysisMessage, createGetPageTranscriptMessage } from '@/shared/messages'
@@ -261,6 +262,16 @@ describe('content script lifecycle', () => {
     await flushMicrotasks()
 
     expect(clipboardWriteText).toHaveBeenCalledWith(createTranscriptPayload().exportText)
+    expect(getBadgeButton('[data-role="badge-copy"]')?.disabled).toBe(true)
+    expect(getBadgeButton('[data-role="badge-copy"]')?.textContent).toContain('Copying...')
+    expect(getBadgeToast()).toBeNull()
+
+    await vi.advanceTimersByTimeAsync(TRANSCRIPT_ACTION_MINIMUM_BUSY_MS)
+    await flushMicrotasks()
+
+    expect(getBadgeButton('[data-role="badge-copy"]')?.disabled).toBe(false)
+    expect(getBadgeButton('[data-role="badge-copy"]')?.textContent).toContain('Copy page')
+    expect(getBadgeToast()?.textContent).toBe('Markdown copied for LLM.')
     expect(getBadgeShell()).not.toBeNull()
   })
 

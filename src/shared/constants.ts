@@ -7,6 +7,7 @@ export const CONTENT_OBSERVER_IDLE_MS = 1_500
 export const NAVIGATION_ANALYSIS_SETTLE_MS = 2_000
 export const INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS = 5_000
 export const INLINE_DOCK_DISMISS_EXIT_DURATION_MS = 780
+export const TRANSCRIPT_ACTION_MINIMUM_BUSY_MS = 450
 export const GET_PAGE_ANALYSIS_MESSAGE_TYPE = 'read-minutes/get-page-analysis'
 export const GET_PAGE_TRANSCRIPT_MESSAGE_TYPE = 'read-minutes/get-page-transcript'
 export const TRANSCRIPT_STORAGE_KEY_PREFIX = 'read-minutes/transcript/'

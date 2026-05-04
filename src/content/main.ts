@@ -7,6 +7,7 @@ import {
   INLINE_DOCK_DISMISS_EXIT_DURATION_MS,
   NAVIGATION_ANALYSIS_SETTLE_MS,
 } from '@/shared/constants'
+import { waitForMinimumTranscriptActionBusyTime } from '@/shared/action-feedback'
 import { isGetPageAnalysisMessage, isGetPageTranscriptMessage } from '@/shared/messages'
 import { mergeSettingsFromStorageChange, readSettings } from '@/shared/settings'
 import {
@@ -242,6 +243,8 @@ async function respondWithTranscript(
 }
 
 async function handleInlineCopy(): Promise<void> {
+  const actionStartedAtMs = performance.now()
+
   updateInlineDockState({
     busyAction: 'copy',
     message: null,
@@ -261,6 +264,7 @@ async function handleInlineCopy(): Promise<void> {
     }
 
     await navigator.clipboard.writeText(transcriptResult.payload.exportText)
+    await waitForMinimumTranscriptActionBusyTime(actionStartedAtMs)
     updateInlineDockState({
       busyAction: null,
       message: 'Markdown copied for LLM.',
