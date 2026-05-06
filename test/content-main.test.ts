@@ -7,7 +7,7 @@ import {
   NAVIGATION_ANALYSIS_SETTLE_MS,
   TRANSCRIPT_ACTION_MINIMUM_BUSY_MS,
 } from '@/shared/constants'
-import { defaultSettings, type ExtensionSettings, type PageAnalysis, type TranscriptPayload, type TranscriptResult } from '@/shared/types'
+import { defaultSettings, type ArticleAnalysis, type ExtensionSettings, type PageAnalysis, type TranscriptPayload, type TranscriptResult } from '@/shared/types'
 import { createGetPageAnalysisMessage, createGetPageTranscriptMessage } from '@/shared/messages'
 
 const originalPushState = window.history.pushState
@@ -84,6 +84,85 @@ describe('content script lifecycle', () => {
 
     expect(analyzeDocument).toHaveBeenCalledTimes(1)
     expect(sendResponse).toHaveBeenCalledWith(analysis)
+  })
+
+  it('reuses fresh automatic analysis when the popup asks for the current page', async () => {
+    const analysis = createArticleAnalysis({
+      sourceUrl: window.location.href,
+    })
+    const analyzeDocument = vi.fn(() => analysis)
+    const chromeMock = createContentChromeMock()
+
+    mockContentScriptDependencies(
+      analyzeDocument,
+      {
+        showInlineBadge: true,
+      },
+      chromeMock,
+    )
+
+    await import('@/content/main')
+    await flushMicrotasks()
+    await advanceScheduledAnalysis(NAVIGATION_ANALYSIS_SETTLE_MS + 1)
+
+    const addListener = chromeMock.runtime.onMessage.addListener as ReturnType<typeof vi.fn>
+    const messageHandler = addListener.mock.calls[0]?.[0]
+    const sendResponse = vi.fn()
+
+    const listenerResult = messageHandler(createGetPageAnalysisMessage(), {}, sendResponse)
+
+    expect(listenerResult).toBe(true)
+    await flushMicrotasks()
+
+    expect(analyzeDocument).toHaveBeenCalledTimes(1)
+    expect(sendResponse).toHaveBeenCalledWith(analysis)
+  })
+
+  it('reparses manual popup requests after meaningful DOM changes', async () => {
+    const initialAnalysis = createArticleAnalysis({
+      readingTimeLabel: '5 min read',
+      sourceUrl: window.location.href,
+      wordCount: 1_020,
+    })
+    const updatedAnalysis = createArticleAnalysis({
+      readingTimeLabel: '6 min read',
+      sourceUrl: window.location.href,
+      wordCount: 1_260,
+    })
+    const analyzeDocument = vi.fn()
+      .mockReturnValueOnce(initialAnalysis)
+      .mockReturnValueOnce(updatedAnalysis)
+    const chromeMock = createContentChromeMock()
+
+    mockContentScriptDependencies(
+      analyzeDocument,
+      {
+        showInlineBadge: true,
+      },
+      chromeMock,
+    )
+
+    await import('@/content/main')
+    await flushMicrotasks()
+    await advanceScheduledAnalysis(NAVIGATION_ANALYSIS_SETTLE_MS + 1)
+
+    const paragraphElement = document.createElement('p')
+
+    paragraphElement.textContent = 'Late loaded article content'
+    document.body.append(paragraphElement)
+    await flushMicrotasks()
+
+    const addListener = chromeMock.runtime.onMessage.addListener as ReturnType<typeof vi.fn>
+    const messageHandler = addListener.mock.calls[0]?.[0]
+    const sendResponse = vi.fn()
+
+    const listenerResult = messageHandler(createGetPageAnalysisMessage(), {}, sendResponse)
+
+    expect(listenerResult).toBe(true)
+    await flushMicrotasks()
+
+    expect(analyzeDocument).toHaveBeenCalledTimes(2)
+    expect(sendResponse).toHaveBeenCalledWith(updatedAnalysis)
   })
 
   it('ignores badge-host mutations when scheduling analysis', async () => {
@@ -524,7 +603,7 @@ function createStorageAreaMock() {
   }
 }
 
-function createArticleAnalysis(): PageAnalysis {
+function createArticleAnalysis(overrides: Partial<ArticleAnalysis> = {}): ArticleAnalysis {
   return {
     status: 'article',
     hostname: 'example.com',
@@ -534,6 +613,7 @@ function createArticleAnalysis(): PageAnalysis {
     wordCount: 1_020,
     minutes: 5,
     readingTimeLabel: '5 min read',
+    ...overrides,
   }
 }
 

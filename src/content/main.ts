@@ -1,6 +1,8 @@
 import {
   ANALYSIS_DEBOUNCE_MS,
   ANALYSIS_IDLE_TIMEOUT_MS,
+  AUTOMATIC_ANALYSIS_MAX_ELEMENT_COUNT,
+  AUTOMATIC_ANALYSIS_MAX_MUTATION_NODE_COUNT,
   BADGE_HOST_ID,
   CONTENT_OBSERVER_IDLE_MS,
   INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
@@ -47,7 +49,16 @@ const MEANINGFUL_MUTATION_TAG_NAMES = new Set([
   'section',
 ])
 const MEANINGFUL_MUTATION_SELECTOR = [...MEANINGFUL_MUTATION_TAG_NAMES].join(',')
+const AUTOMATIC_ANALYSIS_ARTICLE_HINT_SELECTOR = [
+  'article',
+  '[itemprop="articleBody"]',
+  '.entry-content',
+  '.post-content',
+  '.h-entry',
+].join(',')
 const INLINE_DOCK_MESSAGE_DURATION_MS = 2400
+
+type AnalysisMode = 'automatic' | 'manual'
 
 let currentAnalysis: PageAnalysis | null = null
 let currentSettings = defaultSettings
@@ -58,6 +69,7 @@ let contentObserverIdleTimer: number | undefined
 let inlineDockMessageTimer: number | undefined
 let inlineDockExitTimer: number | undefined
 let currentLocationUrl = document.location.href
+let isCurrentAnalysisStale = false
 let dismissedSourceUrl: string | null = null
 let contentMutationObserver: MutationObserver | null = null
 let inlineDockState: InlineDockState = createDefaultInlineDockState()
@@ -77,13 +89,23 @@ async function initializeContentScript(): Promise<void> {
   installNavigationListeners()
 
   if (currentSettings.showInlineBadge) {
-    deferAnalysisForNavigation()
-    scheduleAnalysis()
-    armContentMutationObserver()
+    startAutomaticInlineAnalysis()
   }
 }
 
-async function runAnalysis(): Promise<PageAnalysis> {
+async function runAnalysis(mode: AnalysisMode = 'manual'): Promise<PageAnalysis> {
+  const freshAnalysis = getFreshCurrentAnalysis()
+
+  if (mode === 'manual' && freshAnalysis) {
+    return freshAnalysis
+  }
+
+  if (mode === 'automatic' && !shouldAttemptAutomaticAnalysis()) {
+    stopAutomaticInlineAnalysis()
+
+    return currentAnalysis ?? createNoArticleAnalysisForCurrentPage()
+  }
+
   const previousSourceUrl = currentAnalysis?.sourceUrl ?? null
   const { analyzeDocument } = await import('@/shared/analysis')
 
@@ -92,6 +114,7 @@ async function runAnalysis(): Promise<PageAnalysis> {
   const sourceUrlChanged = previousSourceUrl !== nextSourceUrl
 
   currentAnalysis = nextAnalysis
+  isCurrentAnalysisStale = false
 
   if (sourceUrlChanged) {
     resetInlineDockState()
@@ -145,7 +168,7 @@ function runAnalysisWhenIdle(): void {
   if ('requestIdleCallback' in window) {
     analysisIdleCallbackId = window.requestIdleCallback(() => {
       analysisIdleCallbackId = undefined
-      void runAnalysis()
+      void runAnalysis('automatic')
     }, {
       timeout: ANALYSIS_IDLE_TIMEOUT_MS,
     })
@@ -218,7 +241,7 @@ function handleInlineCopyRequested(): void {
 function installMessageListener(): void {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (isGetPageAnalysisMessage(message)) {
-      void runAnalysis().then(sendResponse)
+      void runAnalysis('manual').then(sendResponse)
 
       return true
     }
@@ -283,9 +306,8 @@ function installStorageListener(): void {
       return
     }
 
-    const previousShowInlineBadge = currentSettings.showInlineBadge
-
     currentSettings = mergeSettingsFromStorageChange(currentSettings, changes)
+    isCurrentAnalysisStale = true
 
     if (!currentSettings.showInlineBadge) {
       disconnectContentMutationObserver()
@@ -295,16 +317,14 @@ function installStorageListener(): void {
       return
     }
 
-    runAnalysis()
-
-    if (!previousShowInlineBadge) {
-      armContentMutationObserver()
-    }
+    startAutomaticInlineAnalysis()
   })
 }
 
 function installNavigationListeners(): void {
   const rerunAnalysis = () => {
+    isCurrentAnalysisStale = true
+
     if (!currentSettings.showInlineBadge) {
       synchronizeLocationState()
       currentAnalysis = null
@@ -312,9 +332,7 @@ function installNavigationListeners(): void {
       return
     }
 
-    deferAnalysisForNavigation()
-    armContentMutationObserver()
-    scheduleAnalysis()
+    startAutomaticInlineAnalysis()
   }
 
   patchHistoryMethod('pushState', rerunAnalysis)
@@ -344,14 +362,123 @@ function armContentMutationObserver(): void {
 }
 
 function handleDocumentMutations(mutations: MutationRecord[]): void {
+  if (isLargeMutationBatch(mutations)) {
+    stopAutomaticInlineAnalysis()
+
+    return
+  }
+
   const hasMeaningfulMutation = mutations.some(isMeaningfulMutation)
 
   if (!hasMeaningfulMutation) {
     return
   }
 
+  isCurrentAnalysisStale = true
   scheduleContentObserverIdleStop()
   scheduleAnalysis()
+}
+
+function startAutomaticInlineAnalysis(): void {
+  if (!shouldAttemptAutomaticAnalysis()) {
+    stopAutomaticInlineAnalysis()
+
+    return
+  }
+
+  deferAnalysisForNavigation()
+  scheduleAnalysis()
+  armContentMutationObserver()
+}
+
+function stopAutomaticInlineAnalysis(): void {
+  clearScheduledAnalysis()
+  disconnectContentMutationObserver()
+  resetInlineDockState()
+  removeBadge()
+  currentAnalysis = createNoArticleAnalysisForCurrentPage()
+  isCurrentAnalysisStale = false
+}
+
+function getFreshCurrentAnalysis(): PageAnalysis | null {
+  if (isCurrentAnalysisStale || !currentAnalysis) {
+    return null
+  }
+
+  return currentAnalysis.sourceUrl === document.location.href
+    ? currentAnalysis
+    : null
+}
+
+function shouldAttemptAutomaticAnalysis(): boolean {
+  const documentBody = document.body
+
+  if (!documentBody) {
+    return false
+  }
+
+  if (documentBody.getElementsByTagName('*').length > AUTOMATIC_ANALYSIS_MAX_ELEMENT_COUNT) {
+    return false
+  }
+
+  if (document.querySelector(AUTOMATIC_ANALYSIS_ARTICLE_HINT_SELECTOR)) {
+    return true
+  }
+
+  return hasArticleMetadataHint()
+}
+
+function hasArticleMetadataHint(): boolean {
+  const openGraphType = document.querySelector<HTMLMetaElement>('meta[property="og:type"]')?.content ?? ''
+
+  if (/\barticle\b/iu.test(openGraphType)) {
+    return true
+  }
+
+  if (document.querySelector('meta[property="article:published_time"]')) {
+    return true
+  }
+
+  return [...document.querySelectorAll('script[type="application/ld+json"]')]
+    .some((scriptElement) => /\b(?:Article|BlogPosting|NewsArticle|TechArticle)\b/u.test(scriptElement.textContent ?? ''))
+}
+
+function isLargeMutationBatch(mutations: MutationRecord[]): boolean {
+  let changedNodeCount = 0
+
+  for (const mutation of mutations) {
+    changedNodeCount += mutation.addedNodes.length + mutation.removedNodes.length
+
+    if (changedNodeCount > AUTOMATIC_ANALYSIS_MAX_MUTATION_NODE_COUNT) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function createNoArticleAnalysisForCurrentPage(): PageAnalysis {
+  const sourceUrl = document.location?.href ?? ''
+  const hostname = getHostname(sourceUrl)
+  const pageTitle = document.title.trim() || hostname || 'This page'
+  const siteName = hostname || 'This page'
+
+  return {
+    hostname,
+    pageTitle,
+    siteName,
+    sourceUrl,
+    status: 'no-article',
+    reason: 'below-threshold',
+  }
+}
+
+function getHostname(sourceUrl: string): string {
+  try {
+    return new URL(sourceUrl).hostname.replace(/^www\./u, '')
+  } catch {
+    return ''
+  }
 }
 
 function isMeaningfulMutation(mutation: MutationRecord): boolean {

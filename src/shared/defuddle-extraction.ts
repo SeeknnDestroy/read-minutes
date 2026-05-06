@@ -10,6 +10,7 @@ export type DefuddleConstructor = new (
   document: Document,
   options?: DefuddleOptions,
 ) => DefuddleParser
+type DocumentSnapshotFactory = (document: Document) => Document
 
 export interface ReadableContentExtraction {
   result: DefuddleResponse
@@ -45,13 +46,14 @@ export function extractReadableContent(
   sourceUrl: string,
   getContentText: (content: string) => string,
   baseOptions: DefuddleOptions = {},
+  createAttemptDocument: DocumentSnapshotFactory = cloneDocument,
 ): ReadableContentExtractionOutcome {
   const attempts = createExtractionAttempts(document)
   let parsedAnyAttempt = false
 
   for (const attempt of attempts) {
     try {
-      const attemptDocument = document.cloneNode(true) as Document
+      const attemptDocument = createAttemptDocument(document)
       const result = parseDefuddleAttempt(Defuddle, attemptDocument, sourceUrl, attempt, baseOptions)
       const wordCount = getWordCount(result, getContentText)
       parsedAnyAttempt = true
@@ -165,4 +167,8 @@ function getWordCount(
   const extractedText = getContentText(result.content)
 
   return countWords(extractedText)
+}
+
+function cloneDocument(document: Document): Document {
+  return document.cloneNode(true) as Document
 }

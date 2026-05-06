@@ -2,9 +2,27 @@ import { JSDOM } from 'jsdom'
 
 describe('Defuddle extraction fallbacks', () => {
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.resetModules()
     vi.doUnmock('defuddle')
     vi.doUnmock('defuddle/full')
+  })
+
+  it('creates one sanitized document snapshot for a successful first extraction attempt', async () => {
+    vi.doMock('defuddle', () => {
+      return {
+        default: createAlwaysReadyMockDefuddleClass(),
+      }
+    })
+
+    const { analyzeDocument } = await import('@/shared/analysis')
+    const { defaultSettings } = await import('@/shared/types')
+    const document = createStructuredFallbackDocument()
+    const cloneSpy = vi.spyOn(document.defaultView!.Node.prototype, 'cloneNode')
+    const analysis = analyzeDocument(document, defaultSettings)
+
+    expect(analysis.status).toBe('article')
+    expect(cloneSpy).toHaveBeenCalledTimes(1)
   })
 
   it('retries structured document content when article detection first extracts a short slice', async () => {
@@ -100,6 +118,18 @@ function createMockDefuddleClass(recoveredContent: string) {
         content: 'Short leading fragment.',
         title: 'Short fragment',
         wordCount: 3,
+      })
+    }
+  }
+}
+
+function createAlwaysReadyMockDefuddleClass() {
+  return class MockDefuddle {
+    public parse() {
+      return createDefuddleResponse({
+        content: '<main><p>Recovered article body.</p></main>',
+        title: 'Recovered fallback article',
+        wordCount: 220,
       })
     }
   }

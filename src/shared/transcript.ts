@@ -7,15 +7,15 @@ export async function createTranscriptResult(document: Document): Promise<Transc
   const pageMetadata = createPageMetadata(document)
 
   try {
-    const snapshotDocument = createExtractionDocumentSnapshot(document)
     const defuddleModule = await import('defuddle/full')
     const Defuddle = defuddleModule.default
     const extractionOutcome = extractReadableContent(
       Defuddle,
-      snapshotDocument,
+      document,
       pageMetadata.sourceUrl,
       normalizeMarkdown,
       { markdown: true },
+      createExtractionDocumentSnapshot,
     )
 
     if (extractionOutcome.status !== 'ready') {

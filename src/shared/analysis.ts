@@ -6,13 +6,13 @@ import type { ArticleAnalysis, ExtensionSettings, NoArticleAnalysis, PageAnalysi
 
 export function analyzeDocument(document: Document, settings: ExtensionSettings): PageAnalysis {
   const baseMetadata = createPageMetadata(document)
-
-  const analysisDocument = createExtractionDocumentSnapshot(document)
   const extractionOutcome = extractReadableContent(
     Defuddle,
-    analysisDocument,
+    document,
     baseMetadata.sourceUrl,
     getTextFromHtml,
+    {},
+    createExtractionDocumentSnapshot,
   )
 
   if (extractionOutcome.status !== 'ready') {
