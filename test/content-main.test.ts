@@ -1,5 +1,6 @@
 import {
   ANALYSIS_DEBOUNCE_MS,
+  AUTOMATIC_ANALYSIS_MAX_ELEMENT_COUNT,
   BADGE_HOST_ID,
   CONTENT_OBSERVER_IDLE_MS,
   INLINE_DOCK_AUTO_CLOSE_TRACE_DURATION_MS,
@@ -104,6 +105,43 @@ describe('content script lifecycle', () => {
     await import('@/content/main')
     await flushMicrotasks()
     await advanceScheduledAnalysis(NAVIGATION_ANALYSIS_SETTLE_MS + 1)
+
+    const addListener = chromeMock.runtime.onMessage.addListener as ReturnType<typeof vi.fn>
+    const messageHandler = addListener.mock.calls[0]?.[0]
+    const sendResponse = vi.fn()
+
+    const listenerResult = messageHandler(createGetPageAnalysisMessage(), {}, sendResponse)
+
+    expect(listenerResult).toBe(true)
+    await flushMicrotasks()
+
+    expect(analyzeDocument).toHaveBeenCalledTimes(1)
+    expect(sendResponse).toHaveBeenCalledWith(analysis)
+  })
+
+  it('runs manual popup analysis after automatic analysis skips a large page', async () => {
+    const analysis = createArticleAnalysis({
+      sourceUrl: window.location.href,
+    })
+    const analyzeDocument = vi.fn(() => analysis)
+    const chromeMock = createContentChromeMock()
+    const largePageElement = document.createElement('div')
+
+    largePageElement.innerHTML = '<span></span>'.repeat(AUTOMATIC_ANALYSIS_MAX_ELEMENT_COUNT + 1)
+    document.body.append(largePageElement)
+
+    mockContentScriptDependencies(
+      analyzeDocument,
+      {
+        showInlineBadge: true,
+      },
+      chromeMock,
+    )
+
+    await import('@/content/main')
+    await flushMicrotasks()
+
+    expect(analyzeDocument).not.toHaveBeenCalled()
 
     const addListener = chromeMock.runtime.onMessage.addListener as ReturnType<typeof vi.fn>
     const messageHandler = addListener.mock.calls[0]?.[0]

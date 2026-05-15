@@ -397,7 +397,7 @@ function stopAutomaticInlineAnalysis(): void {
   resetInlineDockState()
   removeBadge()
   currentAnalysis = createNoArticleAnalysisForCurrentPage()
-  isCurrentAnalysisStale = false
+  isCurrentAnalysisStale = true
 }
 
 function getFreshCurrentAnalysis(): PageAnalysis | null {
