@@ -169,10 +169,12 @@ describe('popup transcript actions', () => {
     )
   })
 
-  it('saves transcript markdown as a local file', async () => {
+  it('saves transcript markdown as a local file without popup-scoped blob URLs', async () => {
     document.body.innerHTML = '<div id="root"></div>'
 
-    const createObjectUrlMock = vi.fn(() => 'blob:read-minutes-markdown')
+    const createObjectUrlMock = vi.fn(() => {
+      throw new Error('Save should not create popup-scoped blob URLs.')
+    })
     const revokeObjectUrlMock = vi.fn()
     const chromeMock = createChromeMock({
       analysis: createArticleAnalysis(),
@@ -197,14 +199,53 @@ describe('popup transcript actions', () => {
     saveButton?.click()
     await flushMicrotasks()
 
-    expect(createObjectUrlMock).toHaveBeenCalledWith(expect.any(Blob))
+    expect(createObjectUrlMock).not.toHaveBeenCalled()
     expect(chromeMock.downloads.download).toHaveBeenCalledWith({
       filename: 'example-article.md',
       saveAs: true,
-      url: 'blob:read-minutes-markdown',
+      url: `data:text/markdown;charset=utf-8,${encodeURIComponent(createTranscriptPayload().exportText)}`,
     })
-    expect(revokeObjectUrlMock).toHaveBeenCalledWith('blob:read-minutes-markdown')
+    expect(revokeObjectUrlMock).not.toHaveBeenCalled()
     expect(document.querySelector('.action-status')?.textContent).toBe('Saved markdown.')
+  })
+
+  it('saves repeated article exports with independent filenames and stable download URLs', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+
+    const chromeMock = createChromeMock({
+      analysis: createArticleAnalysis(),
+      transcriptResult: [
+        createTranscriptReadyResult(createTranscriptPayload({
+          exportText: '# First article\n\nFirst body.',
+          title: 'First Article',
+        })),
+        createTranscriptReadyResult(createTranscriptPayload({
+          exportText: '# Second article\n\nSecond body.',
+          title: 'Second Article',
+        })),
+      ],
+    })
+
+    vi.stubGlobal('chrome', chromeMock)
+
+    await import('@/popup/main')
+    await flushMicrotasks()
+
+    document.querySelector<HTMLButtonElement>('#save-markdown')?.click()
+    await flushMicrotasks()
+    document.querySelector<HTMLButtonElement>('#save-markdown')?.click()
+    await flushMicrotasks()
+
+    expect(chromeMock.downloads.download).toHaveBeenNthCalledWith(1, {
+      filename: 'first-article.md',
+      saveAs: true,
+      url: `data:text/markdown;charset=utf-8,${encodeURIComponent('# First article\n\nFirst body.')}`,
+    })
+    expect(chromeMock.downloads.download).toHaveBeenNthCalledWith(2, {
+      filename: 'second-article.md',
+      saveAs: true,
+      url: `data:text/markdown;charset=utf-8,${encodeURIComponent('# Second article\n\nSecond body.')}`,
+    })
   })
 })
 
@@ -254,10 +295,14 @@ function createChromeMock({
   transcriptResult,
 }: {
   analysis: PageAnalysis
-  transcriptResult: TranscriptResult
+  transcriptResult: TranscriptResult | TranscriptResult[]
 }) {
   const sessionStorageArea = createStorageAreaMock()
   const localStorageArea = createStorageAreaMock()
+  const transcriptResults = Array.isArray(transcriptResult)
+    ? [...transcriptResult]
+    : [transcriptResult]
+  const fallbackTranscriptResult = transcriptResults.at(-1) ?? transcriptResult
 
   return {
     runtime: {
@@ -292,7 +337,7 @@ function createChromeMock({
         }
 
         if (message.type === 'read-minutes/get-page-transcript') {
-          return transcriptResult
+          return transcriptResults.shift() ?? fallbackTranscriptResult
         }
 
         return null
@@ -353,14 +398,14 @@ function createNoArticleAnalysis(): PageAnalysis {
   }
 }
 
-function createTranscriptReadyResult(): TranscriptResult {
+function createTranscriptReadyResult(payload: TranscriptPayload = createTranscriptPayload()): TranscriptResult {
   return {
     status: 'ready',
-    payload: createTranscriptPayload(),
+    payload,
   }
 }
 
-function createTranscriptPayload(): TranscriptPayload {
+function createTranscriptPayload(overrides: Partial<TranscriptPayload> = {}): TranscriptPayload {
   return {
     author: '',
     description: '',
@@ -377,6 +422,7 @@ function createTranscriptPayload(): TranscriptPayload {
     sourceUrl: 'https://example.com/article',
     title: 'Example Article',
     wordCount: 1_020,
+    ...overrides,
   }
 }
 

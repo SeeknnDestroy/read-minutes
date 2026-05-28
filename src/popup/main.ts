@@ -216,8 +216,6 @@ async function handleSaveMarkdown(): Promise<void> {
     message: null,
   })
 
-  let markdownObjectUrl: string | null = null
-
   try {
     const transcriptResult = await loadActiveTabTranscript()
 
@@ -230,15 +228,10 @@ async function handleSaveMarkdown(): Promise<void> {
       return
     }
 
-    const markdownBlob = new Blob([transcriptResult.payload.exportText], {
-      type: 'text/markdown;charset=utf-8',
-    })
-    markdownObjectUrl = URL.createObjectURL(markdownBlob)
-
     await chrome.downloads.download({
       filename: createMarkdownFilename(transcriptResult.payload.title),
       saveAs: true,
-      url: markdownObjectUrl,
+      url: createMarkdownDownloadUrl(transcriptResult.payload.exportText),
     })
     updateTranscriptActionState({
       busyAction: null,
@@ -249,10 +242,6 @@ async function handleSaveMarkdown(): Promise<void> {
       busyAction: null,
       message: 'Saving markdown failed.',
     })
-  } finally {
-    if (markdownObjectUrl) {
-      URL.revokeObjectURL(markdownObjectUrl)
-    }
   }
 }
 
@@ -335,4 +324,8 @@ function createMarkdownFilename(title: string): string {
     .slice(0, 80)
 
   return `${normalizedTitle || 'article'}.md`
+}
+
+function createMarkdownDownloadUrl(markdown: string): string {
+  return `data:text/markdown;charset=utf-8,${encodeURIComponent(markdown)}`
 }
