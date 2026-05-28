@@ -6,6 +6,9 @@ import manifest from './manifest.config'
 const sourceRoot = path.resolve(__dirname, 'src')
 
 export default defineConfig({
+  build: {
+    modulePreload: false,
+  },
   resolve: {
     alias: {
       '@': sourceRoot,
@@ -13,4 +16,3 @@ export default defineConfig({
   },
   plugins: [crx({ manifest })],
 })
-
