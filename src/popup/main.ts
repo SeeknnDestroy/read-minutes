@@ -229,8 +229,8 @@ async function handleSaveMarkdown(): Promise<void> {
     }
 
     await chrome.downloads.download({
+      conflictAction: 'uniquify',
       filename: createMarkdownFilename(transcriptResult.payload.title),
-      saveAs: true,
       url: createMarkdownDownloadUrl(transcriptResult.payload.exportText),
     })
     updateTranscriptActionState({

@@ -201,8 +201,8 @@ describe('popup transcript actions', () => {
 
     expect(createObjectUrlMock).not.toHaveBeenCalled()
     expect(chromeMock.downloads.download).toHaveBeenCalledWith({
+      conflictAction: 'uniquify',
       filename: 'example-article.md',
-      saveAs: true,
       url: `data:text/markdown;charset=utf-8,${encodeURIComponent(createTranscriptPayload().exportText)}`,
     })
     expect(revokeObjectUrlMock).not.toHaveBeenCalled()
@@ -237,15 +237,50 @@ describe('popup transcript actions', () => {
     await flushMicrotasks()
 
     expect(chromeMock.downloads.download).toHaveBeenNthCalledWith(1, {
+      conflictAction: 'uniquify',
       filename: 'first-article.md',
-      saveAs: true,
       url: `data:text/markdown;charset=utf-8,${encodeURIComponent('# First article\n\nFirst body.')}`,
     })
     expect(chromeMock.downloads.download).toHaveBeenNthCalledWith(2, {
+      conflictAction: 'uniquify',
       filename: 'second-article.md',
-      saveAs: true,
       url: `data:text/markdown;charset=utf-8,${encodeURIComponent('# Second article\n\nSecond body.')}`,
     })
+  })
+
+  it('does not open the native save-as dialog for repeated same-site saves', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+
+    const chromeMock = createChromeMock({
+      analysis: createArticleAnalysis(),
+      transcriptResult: [
+        createTranscriptReadyResult(),
+        createTranscriptReadyResult(),
+        createTranscriptReadyResult(),
+      ],
+    })
+
+    vi.stubGlobal('chrome', chromeMock)
+
+    await import('@/popup/main')
+    await flushMicrotasks()
+
+    document.querySelector<HTMLButtonElement>('#save-markdown')?.click()
+    await flushMicrotasks()
+    document.querySelector<HTMLButtonElement>('#save-markdown')?.click()
+    await flushMicrotasks()
+    document.querySelector<HTMLButtonElement>('#save-markdown')?.click()
+    await flushMicrotasks()
+
+    expect(chromeMock.downloads.download).toHaveBeenCalledTimes(3)
+
+    for (const [downloadOptions] of chromeMock.downloads.download.mock.calls) {
+      expect(downloadOptions).toMatchObject({
+        conflictAction: 'uniquify',
+        filename: 'example-article.md',
+      })
+      expect(downloadOptions).not.toHaveProperty('saveAs')
+    }
   })
 })
 
@@ -326,7 +361,7 @@ function createChromeMock({
       },
     },
     downloads: {
-      download: vi.fn(async () => 1),
+      download: vi.fn(async (_options: chrome.downloads.DownloadOptions) => 1),
     },
     tabs: {
       create: vi.fn(async () => undefined),
