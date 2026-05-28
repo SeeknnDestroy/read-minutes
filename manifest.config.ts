@@ -12,7 +12,7 @@ export default defineManifest({
     48: 'public/icon-48.png',
     128: 'public/icon-128.png',
   },
-  permissions: ['storage'],
+  permissions: ['downloads', 'storage'],
   host_permissions: ['http://*/*', 'https://*/*'],
   action: {
     default_title: 'Read Minutes',

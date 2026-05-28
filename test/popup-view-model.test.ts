@@ -19,8 +19,9 @@ describe('createPopupViewModel', () => {
     expect(viewModel.statusLabel).toBe('Article detected')
     expect(viewModel.readingTimeValue).toBe('5 min read')
     expect(viewModel.wordCountValue).toBe('1,020 words')
-    expect(viewModel.copyButtonLabel).toBe('Copy page')
-    expect(viewModel.openButtonLabel).toBe('Open Markdown')
+    expect(viewModel.copyButtonLabel).toBe('Copy')
+    expect(viewModel.openButtonLabel).toBe('Open')
+    expect(viewModel.saveButtonLabel).toBe('Save')
     expect(viewModel.emptyMessage).toBeNull()
   })
 
@@ -78,7 +79,7 @@ describe('createPopupViewModel', () => {
     })
 
     expect(viewModel.isTranscriptActionBusy).toBe(true)
-    expect(viewModel.copyButtonLabel).toBe('Copy page')
+    expect(viewModel.copyButtonLabel).toBe('Copy')
     expect(viewModel.openButtonLabel).toBe('Opening...')
   })
 })

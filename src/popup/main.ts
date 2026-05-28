@@ -83,6 +83,7 @@ function bindControlEvents(): void {
   const copyMarkdownButton = popupRootElement.querySelector<HTMLButtonElement>('#copy-markdown')
   const inlineBadgeInput = popupRootElement.querySelector<HTMLInputElement>('#show-inline-badge')
   const openMarkdownButton = popupRootElement.querySelector<HTMLButtonElement>('#open-markdown')
+  const saveMarkdownButton = popupRootElement.querySelector<HTMLButtonElement>('#save-markdown')
   const wordsPerMinuteInput = popupRootElement.querySelector<HTMLInputElement>('#words-per-minute')
 
   copyMarkdownButton?.addEventListener('click', () => {
@@ -111,6 +112,10 @@ function bindControlEvents(): void {
 
   openMarkdownButton?.addEventListener('click', () => {
     void handleOpenMarkdown()
+  })
+
+  saveMarkdownButton?.addEventListener('click', () => {
+    void handleSaveMarkdown()
   })
 }
 
@@ -205,6 +210,52 @@ async function handleOpenMarkdown(): Promise<void> {
   }
 }
 
+async function handleSaveMarkdown(): Promise<void> {
+  updateTranscriptActionState({
+    busyAction: 'save',
+    message: null,
+  })
+
+  let markdownObjectUrl: string | null = null
+
+  try {
+    const transcriptResult = await loadActiveTabTranscript()
+
+    if (transcriptResult.status !== 'ready') {
+      updateTranscriptActionState({
+        busyAction: null,
+        message: getTranscriptUnavailableMessage(transcriptResult.reason),
+      })
+
+      return
+    }
+
+    const markdownBlob = new Blob([transcriptResult.payload.exportText], {
+      type: 'text/markdown;charset=utf-8',
+    })
+    markdownObjectUrl = URL.createObjectURL(markdownBlob)
+
+    await chrome.downloads.download({
+      filename: createMarkdownFilename(transcriptResult.payload.title),
+      saveAs: true,
+      url: markdownObjectUrl,
+    })
+    updateTranscriptActionState({
+      busyAction: null,
+      message: 'Saved markdown.',
+    })
+  } catch {
+    updateTranscriptActionState({
+      busyAction: null,
+      message: 'Saving markdown failed.',
+    })
+  } finally {
+    if (markdownObjectUrl) {
+      URL.revokeObjectURL(markdownObjectUrl)
+    }
+  }
+}
+
 async function loadActiveTabTranscript(): Promise<TranscriptResult> {
   const activeTab = await loadActiveTab()
 
@@ -273,4 +324,15 @@ async function loadActiveTab(): Promise<chrome.tabs.Tab | null> {
   } catch {
     return null
   }
+}
+
+function createMarkdownFilename(title: string): string {
+  const normalizedTitle = title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, '-')
+    .replace(/^-+|-+$/gu, '')
+    .slice(0, 80)
+
+  return `${normalizedTitle || 'article'}.md`
 }

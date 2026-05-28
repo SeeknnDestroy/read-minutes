@@ -171,17 +171,17 @@ body.raw-transcript-view #root {
 
 .transcript-toolbar {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .toolbar-button {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 10px;
-  min-height: 46px;
-  padding: 10px 12px;
+  gap: 6px;
+  min-height: 44px;
+  padding: 9px 8px;
   border: 1px solid rgba(255, 244, 225, 0.12);
   border-radius: 12px;
   background:
@@ -221,11 +221,12 @@ input[type="checkbox"]:focus-visible {
 }
 
 .action-button-label {
-  min-width: 78px;
+  min-width: 0;
   color: #fff7ec;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   text-align: left;
+  white-space: nowrap;
 }
 
 .section-copy {

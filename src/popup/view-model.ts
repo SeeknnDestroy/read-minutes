@@ -3,7 +3,7 @@ import type { ExtensionSettings, PageAnalysis, TranscriptPayload } from '@/share
 import { getNoArticleMessage } from '@/shared/unavailable'
 
 export interface PopupTranscriptActionState {
-  busyAction: 'copy' | 'open' | null
+  busyAction: 'copy' | 'open' | 'save' | null
   message: string | null
 }
 
@@ -15,6 +15,7 @@ export interface PopupViewModel {
   openButtonLabel: string
   pageTitle: string
   readingTimeValue: string | null
+  saveButtonLabel: string
   showTranscriptActions: boolean
   statusLabel: string
   transcriptActionMessage: string | null
@@ -42,9 +43,10 @@ export function createPopupViewModel(
       emptyMessage: 'No article-like content found on this page.',
       hostname: '',
       isTranscriptActionBusy: false,
-      openButtonLabel: 'Open Markdown',
+      openButtonLabel: 'Open',
       pageTitle: 'Current page',
       readingTimeValue: null,
+      saveButtonLabel: 'Save',
       showTranscriptActions: false,
       statusLabel: 'No article detected',
       transcriptActionMessage: transcriptActionState.message,
@@ -58,9 +60,10 @@ export function createPopupViewModel(
       emptyMessage: getNoArticleMessage(analysis.reason),
       hostname: analysis.hostname,
       isTranscriptActionBusy: false,
-      openButtonLabel: 'Open Markdown',
+      openButtonLabel: 'Open',
       pageTitle: analysis.pageTitle,
       readingTimeValue: null,
+      saveButtonLabel: 'Save',
       showTranscriptActions: false,
       statusLabel: 'No article detected',
       transcriptActionMessage: transcriptActionState.message,
@@ -71,15 +74,17 @@ export function createPopupViewModel(
   const minutes = calculateReadingMinutes(analysis.wordCount, settings.wordsPerMinute)
   const isCopyActionBusy = transcriptActionState.busyAction === 'copy'
   const isOpenActionBusy = transcriptActionState.busyAction === 'open'
+  const isSaveActionBusy = transcriptActionState.busyAction === 'save'
 
   return {
-    copyButtonLabel: isCopyActionBusy ? 'Copying...' : 'Copy page',
+    copyButtonLabel: isCopyActionBusy ? 'Copying...' : 'Copy',
     emptyMessage: null,
     hostname: analysis.siteName,
     isTranscriptActionBusy: transcriptActionState.busyAction !== null,
-    openButtonLabel: isOpenActionBusy ? 'Opening...' : 'Open Markdown',
+    openButtonLabel: isOpenActionBusy ? 'Opening...' : 'Open',
     pageTitle: analysis.pageTitle,
     readingTimeValue: formatReadingTime(minutes),
+    saveButtonLabel: isSaveActionBusy ? 'Saving...' : 'Save',
     showTranscriptActions: true,
     statusLabel: 'Article detected',
     transcriptActionMessage: transcriptActionState.message,

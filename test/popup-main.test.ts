@@ -22,6 +22,7 @@ describe('popup transcript actions', () => {
 
     expect(document.getElementById('copy-markdown')).toBeNull()
     expect(document.getElementById('open-markdown')).toBeNull()
+    expect(document.getElementById('save-markdown')).toBeNull()
   })
 
   it('renders the redesigned popup hierarchy for article pages', async () => {
@@ -40,6 +41,7 @@ describe('popup transcript actions', () => {
     expect(document.querySelector('.transcript-toolbar')).not.toBeNull()
     expect(document.querySelector('#copy-markdown')).not.toBeNull()
     expect(document.querySelector('#open-markdown')).not.toBeNull()
+    expect(document.querySelector('#save-markdown')).not.toBeNull()
     expect(document.querySelector('#toggle-transcript-menu')).toBeNull()
     expect(document.querySelector('.settings-section')?.textContent).toContain('Preferences')
   })
@@ -166,6 +168,44 @@ describe('popup transcript actions', () => {
       createTranscriptPayload(),
     )
   })
+
+  it('saves transcript markdown as a local file', async () => {
+    document.body.innerHTML = '<div id="root"></div>'
+
+    const createObjectUrlMock = vi.fn(() => 'blob:read-minutes-markdown')
+    const revokeObjectUrlMock = vi.fn()
+    const chromeMock = createChromeMock({
+      analysis: createArticleAnalysis(),
+      transcriptResult: createTranscriptReadyResult(),
+    })
+
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectUrlMock,
+    })
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: revokeObjectUrlMock,
+    })
+    vi.stubGlobal('chrome', chromeMock)
+
+    await import('@/popup/main')
+    await flushMicrotasks()
+
+    const saveButton = document.querySelector<HTMLButtonElement>('#save-markdown')
+
+    saveButton?.click()
+    await flushMicrotasks()
+
+    expect(createObjectUrlMock).toHaveBeenCalledWith(expect.any(Blob))
+    expect(chromeMock.downloads.download).toHaveBeenCalledWith({
+      filename: 'example-article.md',
+      saveAs: true,
+      url: 'blob:read-minutes-markdown',
+    })
+    expect(revokeObjectUrlMock).toHaveBeenCalledWith('blob:read-minutes-markdown')
+    expect(document.querySelector('.action-status')?.textContent).toBe('Saved markdown.')
+  })
 })
 
 describe('transcript view mode', () => {
@@ -239,6 +279,9 @@ function createChromeMock({
       onChanged: {
         addListener: vi.fn(),
       },
+    },
+    downloads: {
+      download: vi.fn(async () => 1),
     },
     tabs: {
       create: vi.fn(async () => undefined),

@@ -124,6 +124,7 @@ function createTranscriptToolbar(viewModel: PopupViewModel): HTMLElement {
   const toolbarElement = document.createElement('div')
   const copyButtonElement = document.createElement('button')
   const openButtonElement = document.createElement('button')
+  const saveButtonElement = document.createElement('button')
 
   toolbarElement.className = 'transcript-toolbar'
   copyButtonElement.id = 'copy-markdown'
@@ -142,7 +143,15 @@ function createTranscriptToolbar(viewModel: PopupViewModel): HTMLElement {
     createIconElement('markdown'),
     createActionButtonCopy(viewModel.openButtonLabel),
   )
-  toolbarElement.append(copyButtonElement, openButtonElement)
+  saveButtonElement.id = 'save-markdown'
+  saveButtonElement.className = 'toolbar-button toolbar-button-secondary'
+  saveButtonElement.type = 'button'
+  saveButtonElement.disabled = viewModel.isTranscriptActionBusy
+  saveButtonElement.append(
+    createIconElement('download'),
+    createActionButtonCopy(viewModel.saveButtonLabel),
+  )
+  toolbarElement.append(copyButtonElement, openButtonElement, saveButtonElement)
 
   if (viewModel.transcriptActionMessage) {
     const actionStatusElement = document.createElement('p')
@@ -258,7 +267,7 @@ function createTranscriptContent(viewModel: TranscriptViewModel): HTMLElement {
   return transcriptMarkdownElement
 }
 
-function createIconElement(iconName: 'copy' | 'markdown'): SVGElement {
+function createIconElement(iconName: 'copy' | 'download' | 'markdown'): SVGElement {
   const iconElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
 
   iconElement.setAttribute('viewBox', '0 0 24 24')
@@ -298,6 +307,18 @@ function createIconElement(iconName: 'copy' | 'markdown'): SVGElement {
     leftPathElement.setAttribute('d', 'M7 15V9l3 3 3-3v6')
     rightPathElement.setAttribute('d', 'M15 15h2.5a1.5 1.5 0 0 0 0-3H15')
     iconElement.append(frameElement, leftPathElement, rightPathElement)
+
+    return iconElement
+  }
+
+  if (iconName === 'download') {
+    const arrowPathElement = document.createElementNS(iconElement.namespaceURI, 'path')
+    const trayPathElement = document.createElementNS(iconElement.namespaceURI, 'path')
+
+    iconElement.classList.add('action-icon')
+    arrowPathElement.setAttribute('d', 'M12 4v10m0 0 4-4m-4 4-4-4')
+    trayPathElement.setAttribute('d', 'M5 18h14')
+    iconElement.append(arrowPathElement, trayPathElement)
 
     return iconElement
   }
