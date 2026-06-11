@@ -56,9 +56,23 @@ const AUTOMATIC_ANALYSIS_ARTICLE_HINT_SELECTOR = [
   '.post-content',
   '.h-entry',
 ].join(',')
+const AUTOMATIC_ANALYSIS_LONGFORM_CONTAINER_SELECTOR = [
+  'main',
+  '[role="main"]',
+  '.article',
+  '.article-content',
+  '.content',
+  '.entry-content',
+  '.post-content',
+].join(',')
+const AUTOMATIC_ANALYSIS_HEADING_SELECTOR = 'h1, h2'
+const AUTOMATIC_ANALYSIS_PARAGRAPH_SELECTOR = 'p, blockquote, pre'
+const AUTOMATIC_ANALYSIS_MIN_PARAGRAPH_COUNT_WITH_HEADING = 3
+const AUTOMATIC_ANALYSIS_MIN_PARAGRAPH_COUNT = 5
 const INLINE_DOCK_MESSAGE_DURATION_MS = 2400
 
 type AnalysisMode = 'automatic' | 'manual'
+type AutomaticAnalysisReadiness = 'ready' | 'wait-for-content' | 'too-large'
 
 let currentAnalysis: PageAnalysis | null = null
 let currentSettings = defaultSettings
@@ -100,10 +114,20 @@ async function runAnalysis(mode: AnalysisMode = 'manual'): Promise<PageAnalysis>
     return freshAnalysis
   }
 
-  if (mode === 'automatic' && !shouldAttemptAutomaticAnalysis()) {
-    stopAutomaticInlineAnalysis()
+  if (mode === 'automatic') {
+    const readiness = getAutomaticAnalysisReadiness()
 
-    return currentAnalysis ?? createNoArticleAnalysisForCurrentPage()
+    if (readiness === 'too-large') {
+      stopAutomaticInlineAnalysis()
+
+      return currentAnalysis ?? createNoArticleAnalysisForCurrentPage()
+    }
+
+    if (readiness === 'wait-for-content') {
+      waitForAutomaticInlineAnalysisContent()
+
+      return currentAnalysis ?? createNoArticleAnalysisForCurrentPage()
+    }
   }
 
   const previousSourceUrl = currentAnalysis?.sourceUrl ?? null
@@ -380,14 +404,32 @@ function handleDocumentMutations(mutations: MutationRecord[]): void {
 }
 
 function startAutomaticInlineAnalysis(): void {
-  if (!shouldAttemptAutomaticAnalysis()) {
+  deferAnalysisForNavigation()
+
+  const readiness = getAutomaticAnalysisReadiness()
+
+  if (readiness === 'too-large') {
     stopAutomaticInlineAnalysis()
 
     return
   }
 
-  deferAnalysisForNavigation()
+  if (readiness === 'wait-for-content') {
+    waitForAutomaticInlineAnalysisContent()
+
+    return
+  }
+
   scheduleAnalysis()
+  armContentMutationObserver()
+}
+
+function waitForAutomaticInlineAnalysisContent(): void {
+  clearScheduledAnalysis()
+  resetInlineDockState()
+  removeBadge()
+  currentAnalysis = createNoArticleAnalysisForCurrentPage()
+  isCurrentAnalysisStale = true
   armContentMutationObserver()
 }
 
@@ -410,22 +452,30 @@ function getFreshCurrentAnalysis(): PageAnalysis | null {
     : null
 }
 
-function shouldAttemptAutomaticAnalysis(): boolean {
+function getAutomaticAnalysisReadiness(): AutomaticAnalysisReadiness {
   const documentBody = document.body
 
   if (!documentBody) {
-    return false
+    return 'wait-for-content'
   }
 
   if (documentBody.getElementsByTagName('*').length > AUTOMATIC_ANALYSIS_MAX_ELEMENT_COUNT) {
-    return false
+    return 'too-large'
   }
 
   if (document.querySelector(AUTOMATIC_ANALYSIS_ARTICLE_HINT_SELECTOR)) {
-    return true
+    return 'ready'
   }
 
-  return hasArticleMetadataHint()
+  if (hasArticleMetadataHint()) {
+    return 'ready'
+  }
+
+  if (hasLongformStructureHint()) {
+    return 'ready'
+  }
+
+  return 'wait-for-content'
 }
 
 function hasArticleMetadataHint(): boolean {
@@ -441,6 +491,29 @@ function hasArticleMetadataHint(): boolean {
 
   return [...document.querySelectorAll('script[type="application/ld+json"]')]
     .some((scriptElement) => /\b(?:Article|BlogPosting|NewsArticle|TechArticle)\b/u.test(scriptElement.textContent ?? ''))
+}
+
+function hasLongformStructureHint(): boolean {
+  return getPotentialLongformContainers().some(hasLongformContainerStructure)
+}
+
+function getPotentialLongformContainers(): Element[] {
+  const containers = [...document.querySelectorAll(AUTOMATIC_ANALYSIS_LONGFORM_CONTAINER_SELECTOR)]
+
+  return containers.length > 0
+    ? containers
+    : [document.body].filter((element): element is HTMLElement => element !== null)
+}
+
+function hasLongformContainerStructure(container: Element): boolean {
+  const paragraphCount = container.querySelectorAll(AUTOMATIC_ANALYSIS_PARAGRAPH_SELECTOR).length
+
+  if (paragraphCount >= AUTOMATIC_ANALYSIS_MIN_PARAGRAPH_COUNT) {
+    return true
+  }
+
+  return paragraphCount >= AUTOMATIC_ANALYSIS_MIN_PARAGRAPH_COUNT_WITH_HEADING
+    && Boolean(container.querySelector(AUTOMATIC_ANALYSIS_HEADING_SELECTOR))
 }
 
 function isLargeMutationBatch(mutations: MutationRecord[]): boolean {

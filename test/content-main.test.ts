@@ -64,6 +64,89 @@ describe('content script lifecycle', () => {
     expect(analyzeDocument).toHaveBeenCalledTimes(1)
   })
 
+  it('renders the inline dock during Chrome idle startup for longform pages without article metadata', async () => {
+    installChromeIdleCallbackMock()
+    document.body.innerHTML = `
+      <main>
+        <h1>Readable page without article tags</h1>
+        <p>Useful introduction copy for the reader.</p>
+        <p>More longform body copy that belongs to the main reading surface.</p>
+        <p>Closing body copy that should make the page eligible for automatic analysis.</p>
+      </main>
+    `
+
+    const analysis = createArticleAnalysis({
+      sourceUrl: window.location.href,
+    })
+    const analyzeDocument = vi.fn(() => analysis)
+    const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
+    const chromeMock = createContentChromeMock()
+
+    mockInlineDockDependencies({
+      analyzeDocument,
+      chromeMock,
+      createTranscriptResultMock,
+    })
+
+    await import('@/content/main')
+    await flushMicrotasks()
+
+    expect(analyzeDocument).not.toHaveBeenCalled()
+
+    await advanceScheduledAnalysisWithIdle(NAVIGATION_ANALYSIS_SETTLE_MS + 1)
+
+    expect(analyzeDocument).toHaveBeenCalledTimes(1)
+    expect(document.getElementById(BADGE_HOST_ID)).not.toBeNull()
+    expect(getBadgeShell()?.dataset.exitReason).toBe('auto-close')
+  })
+
+  it('keeps watching pages without startup article hints and renders after article content loads', async () => {
+    installChromeIdleCallbackMock()
+    document.body.innerHTML = `
+      <main>
+        <h1>Loading</h1>
+        <div id="article-root"></div>
+      </main>
+    `
+
+    const analysis = createArticleAnalysis({
+      sourceUrl: window.location.href,
+    })
+    const analyzeDocument = vi.fn(() => analysis)
+    const createTranscriptResultMock = vi.fn(async () => createTranscriptReadyResult())
+    const chromeMock = createContentChromeMock()
+
+    mockInlineDockDependencies({
+      analyzeDocument,
+      chromeMock,
+      createTranscriptResultMock,
+    })
+
+    await import('@/content/main')
+    await flushMicrotasks()
+
+    expect(analyzeDocument).not.toHaveBeenCalled()
+
+    document.querySelector('#article-root')?.insertAdjacentHTML(
+      'beforeend',
+      `
+        <article>
+          <h1>Late article</h1>
+          <p>First paragraph of late loaded article content.</p>
+          <p>Second paragraph of late loaded article content.</p>
+          <p>Third paragraph of late loaded article content.</p>
+        </article>
+      `,
+    )
+    await flushMicrotasks()
+
+    await advanceScheduledAnalysisWithIdle(NAVIGATION_ANALYSIS_SETTLE_MS + 1)
+
+    expect(analyzeDocument).toHaveBeenCalledTimes(1)
+    expect(document.getElementById(BADGE_HOST_ID)).not.toBeNull()
+    expect(getBadgeShell()?.dataset.exitReason).toBe('auto-close')
+  })
+
   it('runs analysis on demand when the popup asks for the current page', async () => {
     const analysis = createArticleAnalysis()
     const analyzeDocument = vi.fn(() => analysis)
@@ -725,6 +808,13 @@ async function advanceScheduledAnalysis(delayMs: number): Promise<void> {
   await flushMicrotasks()
 }
 
+async function advanceScheduledAnalysisWithIdle(delayMs: number): Promise<void> {
+  vi.advanceTimersByTime(delayMs)
+  await flushMicrotasks()
+  vi.advanceTimersByTime(1)
+  await flushMicrotasks()
+}
+
 async function waitForAnalysisCall(
   analyzeDocument: ReturnType<typeof vi.fn>,
   callCount: number,
@@ -740,4 +830,18 @@ async function settleInlineBadgeStartup(
   await advanceScheduledAnalysis(NAVIGATION_ANALYSIS_SETTLE_MS + 1)
   await waitForAnalysisCall(analyzeDocument, 1)
   analyzeDocument.mockClear()
+}
+
+function installChromeIdleCallbackMock(): void {
+  vi.stubGlobal('requestIdleCallback', vi.fn((callback: IdleRequestCallback) => (
+    window.setTimeout(() => {
+      callback({
+        didTimeout: false,
+        timeRemaining: () => 50,
+      })
+    }, 0)
+  )))
+  vi.stubGlobal('cancelIdleCallback', vi.fn((handle: number) => {
+    window.clearTimeout(handle)
+  }))
 }
